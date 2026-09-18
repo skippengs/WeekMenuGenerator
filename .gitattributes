@@ -1,0 +1,7 @@
+# Normaliseer regeleindes: LF in de repo, CRLF lokaal op Windows.
+# Voorkomt dat elke Windows-commit het hele bestand als gewijzigd toont.
+* text=auto eol=lf
+
+*.png binary
+*.jpg binary
+*.ico binary

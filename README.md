@@ -1,0 +1,130 @@
+# Weekmenu
+
+Genereert elke week een dinermenu voor zes dagen. Vrijdag is junkfood-dag en
+wordt overgeslagen. Draait op gewone PHP-webhosting met MySQL.
+
+## Wat het doet
+
+- Genereert een week aan avondeten, met een rotatie die herhaling tegengaat
+- Vraagt bij het genereren wat je in huis hebt en geeft die recepten voorrang
+- Eigen recepten toevoegen via een admin paneel
+- Losse dag opnieuw gooien zonder de rest van de week kwijt te raken
+- Boodschappenlijst van wat je nog moet halen
+- 45 Nederlandse recepten om mee te beginnen
+
+## Installeren op mijndomein.nl
+
+### 1. Database aanmaken
+
+Plesk → **Databases** → *Database toevoegen*. Noteer de naam, gebruiker en
+het wachtwoord.
+
+### 2. PHP-versie controleren
+
+Plesk → **Websites & domeinen** → *PHP-instellingen*. Zet de versie op
+**8.4** (of 8.3 als 8.4 er nog niet is). Lager dan 8.1 werkt niet.
+
+### 3. Uploaden
+
+Zet de **inhoud** van de map `httpdocs/` in de map `httpdocs` op de server,
+via Plesk Bestandsbeheer of met SFTP (FileZilla).
+
+Heb je lokaal een `inc/config.local.php`? Upload die **niet** — dat zijn je
+testinstellingen. De installer maakt op de server zijn eigen versie.
+
+De mappenstructuur op de server wordt:
+
+```
+httpdocs/
+├── index.php
+├── admin.php
+├── login.php
+├── logout.php
+├── install.php      ← weghalen na stap 4
+├── manifest.json
+├── .htaccess
+├── api/
+│   ├── generate.php
+│   └── reroll.php
+├── assets/
+│   ├── app.css
+│   └── app.js
+└── inc/
+    ├── .htaccess    ← blokkeert directe toegang, moet mee
+    ├── config.php
+    ├── db.php
+    ├── auth.php
+    ├── helpers.php
+    ├── generator.php
+    └── seed_data.php
+```
+
+### 4. Installeren
+
+Ga naar `https://jouwdomein.nl/install.php`. Daar vul je in:
+
+- Databaseserver (bij mijndomein: `localhost`)
+- Naam van de database, gebruiker en wachtwoord — uit stap 1
+- Een adminwachtwoord dat je zelf kiest, minstens 8 tekens
+
+De installer test eerst of de verbinding werkt, schrijft de gegevens naar
+`inc/config.local.php`, maakt de tabellen aan en zet er 45 recepten in.
+Je hoeft dus zelf geen enkel bestand te bewerken.
+
+### 5. install.php weghalen
+
+**Verwijder `install.php` van de server zodra je klaar bent.** Draait hij
+nog, dan kan iedereen die het adres kent hem openen.
+
+### 6. Klaar
+
+`https://jouwdomein.nl` toont het weekmenu. Recepten beheren gaat via
+`/admin.php`, met het adminwachtwoord dat je bij de installatie koos.
+
+Op je telefoon kun je de site aan je beginscherm toevoegen; dan opent hij
+als een app.
+
+## Hoe de rotatie werkt
+
+Elk recept krijgt een gewicht, en er wordt geloot met dat gewicht als kans.
+
+| Wat | Effect |
+|---|---|
+| Langer geleden gegeten | Zwaarder gewicht, dus grotere kans |
+| Nog nooit gegeten | Hoog gewicht, komt snel aan de beurt |
+| Binnen 3 weken gepland of gegeten | Valt af |
+| Ingrediënt in huis | Kans ongeveer ×2 per raak ingrediënt |
+| Uitgebreid recept doordeweeks | Gewicht × 0,3 |
+| Uitgebreid recept in het weekend | Gewicht × 1,4 |
+
+Daarnaast komt elke soort (pasta, rijst, stamppot…) hoogstens één keer per
+week voor.
+
+Heb je te weinig recepten om aan al die regels te voldoen, dan laat de
+generator ze stap voor stap los in plaats van een lege dag te tonen. Met
+twaalf recepten krijg je dus nog steeds een volle week.
+
+### Bijstellen
+
+In `inc/config.php`:
+
+```php
+defined('COOLDOWN_WEEKS') or define('COOLDOWN_WEEKS', 3);   // lager = meer herhaling
+defined('PANTRY_BOOST')   or define('PANTRY_BOOST',   0.9); // hoger = voorraad weegt zwaarder
+```
+
+## Eigen recepten toevoegen
+
+Via `/admin.php`. Bij **Ingrediënten** vul je alleen de kenmerkende dingen
+in, gescheiden door komma's — dus `gehakt, macaroni, ui, kaas` en niet ook
+nog peper, zout en olie. Die lijst bepaalt twee dingen: of het recept
+omhoog schuift als je iets in huis hebt, en wat er op de boodschappenlijst
+komt.
+
+Onderaan het admin paneel staat de **voorraadlijst**: dat zijn de items die
+je te zien krijgt in het venster bij het genereren. Houd die kort.
+
+## Vereisten
+
+- PHP 8.1 of hoger (8.4 aanbevolen), met PDO MySQL en mbstring
+- MySQL of MariaDB

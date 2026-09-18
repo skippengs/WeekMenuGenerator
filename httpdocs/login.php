@@ -1,0 +1,62 @@
+<?php
+declare(strict_types=1);
+define('WEEKMENU', true);
+
+require __DIR__ . '/inc/config.php';
+require __DIR__ . '/inc/helpers.php';
+require __DIR__ . '/inc/auth.php';
+
+startSession();
+
+if (isAdmin()) {
+    header('Location: admin.php');
+    exit;
+}
+
+$error = null;
+
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    if (!checkCsrf($_POST['csrf'] ?? null)) {
+        $error = 'Sessie verlopen. Probeer het opnieuw.';
+    } elseif (attemptLogin((string)($_POST['password'] ?? ''))) {
+        header('Location: admin.php');
+        exit;
+    } else {
+        // Kleine vertraging, zodat blind proberen weinig zin heeft.
+        usleep(400000);
+        $error = 'Onjuist wachtwoord.';
+    }
+}
+?>
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Inloggen</title>
+<link rel="stylesheet" href="assets/app.css">
+</head>
+<body>
+<main class="wrap login-wrap">
+    <form class="card" method="post" action="login.php">
+        <h2>Inloggen</h2>
+
+        <?php if ($error): ?>
+            <div class="alert alert-error"><?= esc($error) ?></div>
+        <?php endif; ?>
+
+        <input type="hidden" name="csrf" value="<?= esc(csrfToken()) ?>">
+
+        <div class="field">
+            <label for="pw">Wachtwoord</label>
+            <input type="password" id="pw" name="password" required autofocus autocomplete="current-password">
+        </div>
+
+        <button class="btn btn-primary" type="submit">Inloggen</button>
+        <p class="field-hint" style="margin-top:14px">
+            <a href="index.php">Terug naar het weekmenu</a>
+        </p>
+    </form>
+</main>
+</body>
+</html>

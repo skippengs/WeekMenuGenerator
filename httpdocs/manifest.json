@@ -1,0 +1,9 @@
+{
+    "name": "Weekmenu",
+    "short_name": "Weekmenu",
+    "start_url": "index.php",
+    "display": "standalone",
+    "background_color": "#f6f5f1",
+    "theme_color": "#1f6f4f",
+    "lang": "nl"
+}

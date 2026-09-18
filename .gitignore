@@ -1,0 +1,23 @@
+# Echte instellingen: database- en adminwachtwoord.
+# Wordt op de server aangemaakt door install.php.
+httpdocs/inc/config.local.php
+
+# Lokale ontwikkelomgeving (verwijst naar paden op deze pc)
+.claude/
+
+# Editors
+.vscode/
+.idea/
+*.code-workspace
+*.sublime-*
+
+# Windows / macOS
+Thumbs.db
+desktop.ini
+.DS_Store
+
+# Tijdelijk
+*.log
+*.bak
+*.tmp
+*~
