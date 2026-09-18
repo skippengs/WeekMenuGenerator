@@ -70,6 +70,7 @@ if (!$alreadyInstalled && $_SERVER['REQUEST_METHOD'] === 'POST') {
     $form['db_prefix'] = trim((string)($_POST['db_prefix'] ?? ''));
     $dbPass            = (string)($_POST['db_pass'] ?? '');
     $adminPass         = (string)($_POST['admin_pass'] ?? '');
+    $adminPass2        = (string)($_POST['admin_pass2'] ?? '');
 
     if ($form['db_host'] === '') { $errors[] = 'Vul de databaseserver in (meestal localhost).'; }
     if ($form['db_name'] === '') { $errors[] = 'Vul de naam van de database in.'; }
@@ -85,6 +86,10 @@ if (!$alreadyInstalled && $_SERVER['REQUEST_METHOD'] === 'POST') {
 
     if (mb_strlen($adminPass) < 8) {
         $errors[] = 'Kies een adminwachtwoord van minstens 8 tekens.';
+    } elseif (!hash_equals($adminPass, $adminPass2)) {
+        // Het databasewachtwoord toetsen we door verbinding te maken, maar
+        // een typefout in dit wachtwoord merk je pas als je wilt inloggen.
+        $errors[] = 'De twee adminwachtwoorden zijn niet gelijk.';
     }
 
     /* --- verbinding testen --- */
@@ -411,6 +416,17 @@ if (empty($_SESSION['csrf'])) {
                 <p class="field-hint">
                     Hiermee log je straks in op <code>/admin.php</code> om recepten
                     toe te voegen. Minstens 8 tekens.
+                </p>
+            </div>
+
+            <div class="field">
+                <label for="admin_pass2">Adminwachtwoord nog een keer</label>
+                <input type="password" id="admin_pass2" name="admin_pass2" required
+                       minlength="8" autocomplete="new-password">
+                <p class="field-hint">
+                    Een typefout hierin merk je anders pas als je wilt inloggen.
+                    Kwijt? Dan pas je <code>ADMIN_PASSWORD</code> aan in
+                    <code>inc/config.local.php</code>.
                 </p>
             </div>
 
