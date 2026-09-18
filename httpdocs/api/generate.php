@@ -15,6 +15,9 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     jsonOut(['error' => 'Alleen POST'], 405);
 }
 
+// Kijken mag iedereen, wijzigen niet.
+requireAdminJson();
+
 $input = jsonIn();
 
 if (!checkCsrf($input['csrf'] ?? null)) {

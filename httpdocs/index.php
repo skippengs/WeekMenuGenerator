@@ -12,6 +12,9 @@ require __DIR__ . '/inc/generator.php';
 startSession();
 $pdo = db();
 
+// Kijken mag iedereen; alleen ingelogd kun je iets veranderen.
+$mayEdit = isAdmin();
+
 $current  = weekStart($_GET['week'] ?? null);
 $week     = loadWeek($pdo, $current);
 $shopping = $week ? shoppingList($pdo, $week['id']) : [];
@@ -70,7 +73,12 @@ $recipeCount = (int)$pdo->query('SELECT COUNT(*) FROM {recipe} WHERE is_active =
     <div class="wrap topbar-inner">
         <h1>Weekmenu</h1>
         <nav class="topnav">
-            <a href="admin.php">Recepten beheren</a>
+            <?php if ($mayEdit): ?>
+                <a href="admin.php">Recepten beheren</a>
+                <a href="logout.php">Uitloggen</a>
+            <?php else: ?>
+                <a href="login.php">Inloggen</a>
+            <?php endif; ?>
         </nav>
     </div>
 </header>
@@ -90,8 +98,12 @@ $recipeCount = (int)$pdo->query('SELECT COUNT(*) FROM {recipe} WHERE is_active =
 
         <section class="empty">
             <p class="empty-text">Voor deze week staat nog geen menu klaar.</p>
-            <button class="btn btn-primary btn-big" data-open-pantry>Genereer weekmenu</button>
-            <?php if ($recipeCount < 10): ?>
+            <?php if ($mayEdit): ?>
+                <button class="btn btn-primary btn-big" data-open-pantry>Genereer weekmenu</button>
+            <?php else: ?>
+                <p class="hint"><a href="login.php">Log in</a> om een menu te maken.</p>
+            <?php endif; ?>
+            <?php if ($mayEdit && $recipeCount < 10): ?>
                 <p class="hint">
                     Er zijn nu <?= $recipeCount ?> recepten. Voeg er een paar toe via
                     <a href="admin.php">Recepten beheren</a> voor meer afwisseling.
@@ -145,23 +157,29 @@ $recipeCount = (int)$pdo->query('SELECT COUNT(*) FROM {recipe} WHERE is_active =
 
                     <?php if (!$isJunk): ?>
                         <div class="day-actions">
-                            <div class="servings servings-day" data-servings-control="<?= $i ?>">
-                                <button class="servings-btn" data-servings="-1" aria-label="Minder personen">&minus;</button>
-                                <span class="servings-value"><span data-servings-value><?= $dayServings ?></span>p</span>
-                                <button class="servings-btn" data-servings="1" aria-label="Meer personen">+</button>
-                            </div>
-                            <button class="btn btn-reroll" data-reroll="<?= $i ?>" title="Ander gerecht voor deze dag">
-                                Ander gerecht
-                            </button>
+                            <?php if ($mayEdit): ?>
+                                <div class="servings servings-day" data-servings-control="<?= $i ?>">
+                                    <button class="servings-btn" data-servings="-1" aria-label="Minder personen">&minus;</button>
+                                    <span class="servings-value"><span data-servings-value><?= $dayServings ?></span>p</span>
+                                    <button class="servings-btn" data-servings="1" aria-label="Meer personen">+</button>
+                                </div>
+                                <button class="btn btn-reroll" data-reroll="<?= $i ?>" title="Ander gerecht voor deze dag">
+                                    Ander gerecht
+                                </button>
+                            <?php else: ?>
+                                <span class="chip chip-soft"><?= $dayServings ?> pers.</span>
+                            <?php endif; ?>
                         </div>
                     <?php endif; ?>
                 </article>
             <?php endforeach; ?>
         </section>
 
-        <div class="actions">
-            <button class="btn btn-primary" data-open-pantry>Genereer opnieuw</button>
-        </div>
+        <?php if ($mayEdit): ?>
+            <div class="actions">
+                <button class="btn btn-primary" data-open-pantry>Genereer opnieuw</button>
+            </div>
+        <?php endif; ?>
 
         <?php if ($shopping !== []): ?>
             <section class="shopping">
@@ -200,6 +218,7 @@ $recipeCount = (int)$pdo->query('SELECT COUNT(*) FROM {recipe} WHERE is_active =
 </main>
 
 <!-- Voorraadvenster ------------------------------------------------ -->
+<?php if ($mayEdit): ?>
 <div class="modal" id="pantryModal" hidden>
     <div class="modal-backdrop" data-close-pantry></div>
 
@@ -241,6 +260,7 @@ $recipeCount = (int)$pdo->query('SELECT COUNT(*) FROM {recipe} WHERE is_active =
         </footer>
     </div>
 </div>
+<?php endif; ?>
 
 <!-- Receptvenster ------------------------------------------------- -->
 <div class="modal" id="recipeModal" hidden>
@@ -258,10 +278,14 @@ $recipeCount = (int)$pdo->query('SELECT COUNT(*) FROM {recipe} WHERE is_active =
 
             <div class="detail-servings">
                 <h3 class="detail-head">Nodig</h3>
-                <div class="servings" id="recipeServings">
-                    <button class="servings-btn" data-servings="-1" aria-label="Minder personen">&minus;</button>
+                <div class="servings<?= $mayEdit ? '' : ' servings-static' ?>" id="recipeServings">
+                    <?php if ($mayEdit): ?>
+                        <button class="servings-btn" data-servings="-1" aria-label="Minder personen">&minus;</button>
+                    <?php endif; ?>
                     <span class="servings-value"><span data-servings-value>3</span> pers.</span>
-                    <button class="servings-btn" data-servings="1" aria-label="Meer personen">+</button>
+                    <?php if ($mayEdit): ?>
+                        <button class="servings-btn" data-servings="1" aria-label="Meer personen">+</button>
+                    <?php endif; ?>
                 </div>
             </div>
             <ul class="detail-ingredients" id="recipeIngredients"></ul>
@@ -287,7 +311,8 @@ $recipeCount = (int)$pdo->query('SELECT COUNT(*) FROM {recipe} WHERE is_active =
     window.WEEKMENU = {
         csrf: <?= json_encode(csrfToken()) ?>,
         weekStart: <?= json_encode($current) ?>,
-        weekId: <?= json_encode($week['id'] ?? null) ?>
+        weekId: <?= json_encode($week['id'] ?? null) ?>,
+        mayEdit: <?= json_encode($mayEdit) ?>
     };
 </script>
 <script src="assets/app.js"></script>

@@ -13,6 +13,7 @@ wordt overgeslagen. Draait op gewone PHP-webhosting met MySQL.
 - Klik op een gerecht voor de ingredienten, hoeveelheden en een korte bereiding
 - Aantal personen per dag; de boodschappenlijst telt dat vanzelf op
 - 47 Nederlandse recepten om mee te beginnen, met bereiding
+- Kijken mag iedereen, wijzigen alleen na inloggen
 
 ## Installeren op mijndomein.nl
 
@@ -147,6 +148,17 @@ komt.
 
 Onderaan het admin paneel staat de **voorraadlijst**: dat zijn de items die
 je te zien krijgt in het venster bij het genereren. Houd die kort.
+
+## Wie mag wat
+
+Het weekmenu is voor iedereen te bekijken: gerechten, bereiding,
+hoeveelheden en de boodschappenlijst. Handig om even te laten zien of
+door te sturen.
+
+Wijzigen kan alleen na inloggen met het adminwachtwoord: genereren, een
+dag opnieuw gooien, het aantal personen aanpassen en recepten beheren.
+Zonder login zijn die knoppen niet alleen verborgen, de api-bestanden
+weigeren het ook (401), dus rechtstreeks aanroepen helpt niemand.
 
 ## Bijwerken naar een nieuwe versie
 

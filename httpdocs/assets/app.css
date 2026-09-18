@@ -857,3 +857,9 @@ code {
 
     .servings-day { opacity: 1; }
 }
+
+/* Alleen-lezen: geen knoppen, wel de waarde tonen. */
+.servings-static {
+    padding: 4px 12px;
+    background: var(--surface-alt);
+}

@@ -190,6 +190,8 @@
 
     /** Zet een dag op een nieuw aantal en bewaar dat. */
     function changeServings(day, delta) {
+        if (!cfg.mayEdit) { return; }
+
         var next = getDayServings(day) + delta;
         if (next < 1 || next > 20) { return; }
 

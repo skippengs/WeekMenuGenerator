@@ -19,6 +19,17 @@ function isAdmin(): bool
     return !empty($_SESSION['is_admin']);
 }
 
+/**
+ * Zelfde als requireAdmin, maar voor de api-bestanden: die moeten JSON
+ * terugsturen en niet naar een inlogpagina wijzen.
+ */
+function requireAdminJson(): void
+{
+    if (!isAdmin()) {
+        jsonOut(['error' => 'Log in om het weekmenu te wijzigen.'], 401);
+    }
+}
+
 function requireAdmin(): void
 {
     if (!isAdmin()) {
