@@ -863,3 +863,27 @@ code {
     padding: 4px 12px;
     background: var(--surface-alt);
 }
+
+/* ---------- Bring-knop ---------- */
+
+.btn-bring {
+    border-color: var(--accent);
+    color: var(--accent);
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+.btn-bring:hover {
+    background: var(--accent);
+    color: #fff;
+}
+
+@media (prefers-color-scheme: dark) {
+    .btn-bring:hover { color: #10231a; }
+}
+
+/* Afgevinkt blijft leesbaar, maar duidelijk afgedaan. */
+.shopping-group label.is-done { color: var(--text-soft); text-decoration: line-through; }
+
+.shopping-group input[disabled] { cursor: default; }
+.shopping-group label:has(input[disabled]) { cursor: default; }

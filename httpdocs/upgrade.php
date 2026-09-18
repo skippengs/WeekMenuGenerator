@@ -66,6 +66,16 @@ try {
     );
     $log[] = 'Instellingen staan klaar, standaard 3 personen.';
 
+    /* --- 1c. afvinklijst van de boodschappen --- */
+    $pdo->exec(
+        'CREATE TABLE IF NOT EXISTS {shopping_check} (
+            week_id INT UNSIGNED NOT NULL,
+            item    VARCHAR(80)  NOT NULL,
+            PRIMARY KEY (week_id, item)
+         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci'
+    );
+    $log[] = 'Afvinklijst staat klaar.';
+
     /* --- 2. bestaande recepten ophalen --- */
     $existing = [];
     foreach ($pdo->query('SELECT id, name, is_mine FROM {recipe}') as $row) {

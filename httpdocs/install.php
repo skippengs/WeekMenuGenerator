@@ -202,6 +202,15 @@ if (!$alreadyInstalled && $_SERVER['REQUEST_METHOD'] === 'POST') {
                     UNIQUE KEY uniq_week (week_start)
                 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci",
 
+            $p . 'shopping_check' => "
+                CREATE TABLE IF NOT EXISTS `{$p}shopping_check` (
+                    week_id INT UNSIGNED NOT NULL,
+                    item    VARCHAR(80)  NOT NULL,
+                    PRIMARY KEY (week_id, item),
+                    CONSTRAINT `{$p}fk_sc_week` FOREIGN KEY (week_id)
+                        REFERENCES `{$p}menu_week`(id) ON DELETE CASCADE
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci",
+
             $p . 'menu_entry' => "
                 CREATE TABLE IF NOT EXISTS `{$p}menu_entry` (
                     id          INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,

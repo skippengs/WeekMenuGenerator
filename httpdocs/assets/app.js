@@ -419,37 +419,35 @@
 
     renderShopping();
 
-    /* ---------- boodschappenlijst onthouden per week ---------- */
+    /* ---------- boodschappen afvinken ---------- */
 
-    var shoppingBoxes = document.querySelectorAll('.shopping input[type="checkbox"]');
+    /*
+     * Wat je afvinkt gaat naar de server, niet naar deze browser. Anders
+     * staat de lijst op de telefoon van de een wel afgestreept en op die
+     * van de ander niet.
+     */
 
-    if (shoppingBoxes.length) {
-        var storeKey = 'weekmenu-boodschappen-' + (cfg.weekStart || '');
+    document.addEventListener('change', function (e) {
+        var box = e.target.closest('[data-check]');
+        if (!box) { return; }
 
-        // Wat al afgevinkt was terugzetten. Dit is puur gemak op één
-        // apparaat, dus localStorage is hier prima.
-        try {
-            var saved = JSON.parse(localStorage.getItem(storeKey) || '[]');
-            shoppingBoxes.forEach(function (cb, i) {
-                if (saved.indexOf(i) !== -1) {
-                    cb.checked = true;
-                    cb.closest('label').classList.add('is-done');
-                }
-            });
-        } catch (err) { /* geen opslag beschikbaar, niet erg */ }
+        var label = box.closest('label');
+        if (label) { label.classList.toggle('is-done', box.checked); }
 
-        shoppingBoxes.forEach(function (cb, i) {
-            cb.addEventListener('change', function () {
-                cb.closest('label').classList.toggle('is-done', cb.checked);
+        if (!cfg.mayEdit) { return; }
 
-                try {
-                    var done = [];
-                    shoppingBoxes.forEach(function (other, j) {
-                        if (other.checked) { done.push(j); }
-                    });
-                    localStorage.setItem(storeKey, JSON.stringify(done));
-                } catch (err) { /* idem */ }
-            });
+        postJson('api/check.php', {
+            csrf: cfg.csrf,
+            week_id: cfg.weekId,
+            item: box.getAttribute('data-check'),
+            checked: box.checked
+        }).catch(function (err) {
+            // Niet opgeslagen: zet het vinkje terug, anders denk je
+            // straks in de winkel dat je het al hebt.
+            box.checked = !box.checked;
+            if (label) { label.classList.toggle('is-done', box.checked); }
+            toast(err.message, true);
         });
-    }
+    });
+
 }());

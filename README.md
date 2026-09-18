@@ -14,6 +14,8 @@ wordt overgeslagen. Draait op gewone PHP-webhosting met MySQL.
 - Aantal personen per dag; de boodschappenlijst telt dat vanzelf op
 - 47 Nederlandse recepten om mee te beginnen, met bereiding
 - Kijken mag iedereen, wijzigen alleen na inloggen
+- Boodschappen afvinken wordt per week bewaard, dus op elk apparaat gelijk
+- Exportknop zet de lijst in de Bring! app
 
 ## Installeren op mijndomein.nl
 
@@ -159,6 +161,21 @@ Wijzigen kan alleen na inloggen met het adminwachtwoord: genereren, een
 dag opnieuw gooien, het aantal personen aanpassen en recepten beheren.
 Zonder login zijn die knoppen niet alleen verborgen, de api-bestanden
 weigeren het ook (401), dus rechtstreeks aanroepen helpt niemand.
+
+## Boodschappenlijst naar Bring!
+
+Ingelogd staat er boven de boodschappenlijst een knop **Naar Bring!**.
+Die opent de Bring! app met alles wat je nog moet halen erin; afgevinkte
+dingen blijven weg.
+
+Het werkt via `bring.php`, een pagina die de lijst als schema.org-recept
+toont. Bring haalt die pagina zelf op vanaf hun servers, dus er staat
+bewust geen login op. Er staat ook niets gevoeligs op: alleen wat er
+deze week gekocht moet worden.
+
+Werkt het niet, controleer de pagina dan met de integratiecheck van Bring
+zelf op getbring.com/en/integration-check; vul daar het volledige adres
+van `bring.php?week=JJJJ-MM-DD` in.
 
 ## Bijwerken naar een nieuwe versie
 

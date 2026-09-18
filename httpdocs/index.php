@@ -183,11 +183,33 @@ $recipeCount = (int)$pdo->query('SELECT COUNT(*) FROM {recipe} WHERE is_active =
 
         <?php if ($shopping !== []): ?>
             <section class="shopping">
-                <h2>Boodschappenlijst</h2>
-                <p class="hint">
-                    Opgeteld over de hele week, met het aantal personen dat je per dag
-                    hebt ingesteld. Wat je al in huis had staat er niet bij.
-                </p>
+                <div class="shopping-head">
+                    <div>
+                        <h2>Boodschappenlijst</h2>
+                        <p class="hint">
+                            Opgeteld over de hele week, met het aantal personen dat je per dag
+                            hebt ingesteld. Wat je al in huis had staat er niet bij.
+                        </p>
+                    </div>
+                    <?php if ($mayEdit): ?>
+                        <?php
+                        // Bring haalt de lijst zelf op, dus dit moet een adres zijn
+                        // dat van buitenaf te bereiken is.
+                        $scheme  = empty($_SERVER['HTTPS']) ? 'http' : 'https';
+                        $dir     = rtrim(dirname($_SERVER['PHP_SELF']), '/\\');
+                        $bringUrl = $scheme . '://' . $_SERVER['HTTP_HOST'] . $dir
+                                  . '/bring.php?week=' . urlencode($current);
+                        $deeplink = 'https://api.getbring.com/rest/bringrecipes/deeplink'
+                                  . '?url=' . urlencode($bringUrl)
+                                  . '&source=web&baseQuantity=1&requestedQuantity=1';
+                        ?>
+                        <a class="btn btn-bring" href="<?= esc($deeplink) ?>"
+                           target="_blank" rel="noopener"
+                           title="Zet de lijst in de Bring! app">
+                            Naar Bring!
+                        </a>
+                    <?php endif; ?>
+                </div>
                 <div class="shopping-groups">
                     <?php foreach ($shopping as $group => $items): ?>
                         <div class="shopping-group">
@@ -195,8 +217,11 @@ $recipeCount = (int)$pdo->query('SELECT COUNT(*) FROM {recipe} WHERE is_active =
                             <ul>
                                 <?php foreach ($items as $item): ?>
                                     <li>
-                                        <label>
-                                            <input type="checkbox">
+                                        <label class="<?= $item['checked'] ? 'is-done' : '' ?>">
+                                            <input type="checkbox"
+                                                   data-check="<?= esc($item['name']) ?>"
+                                                   <?= $item['checked'] ? 'checked' : '' ?>
+                                                   <?= $mayEdit ? '' : 'disabled' ?>>
                                             <span>
                                                 <span class="shop-amount"
                                                       data-name="<?= esc($item['name']) ?>"

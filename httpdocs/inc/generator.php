@@ -200,6 +200,9 @@ function generateWeek(PDO $pdo, string $weekStart, array $pantryIds): int
 
         $pdo->prepare('DELETE FROM {menu_entry} WHERE week_id = ?')->execute([$weekId]);
 
+        // Andere gerechten, andere boodschappen: begin met een schone lijst.
+        $pdo->prepare('DELETE FROM {shopping_check} WHERE week_id = ?')->execute([$weekId]);
+
         // Elke nieuwe week start op het standaard aantal personen; een
         // gast van vorige week hoort niet mee te slepen.
         $servings = defaultServings($pdo);
@@ -345,15 +348,24 @@ function shoppingList(PDO $pdo, int $weekId): array
     );
     $stmt->execute([$weekId]);
 
+    // Wat er al in het karretje ligt.
+    $checked = [];
+    $marks = $pdo->prepare('SELECT item FROM {shopping_check} WHERE week_id = ?');
+    $marks->execute([$weekId]);
+    foreach ($marks as $row) {
+        $checked[$row['item']] = true;
+    }
+
     $list = [];
     foreach ($stmt as $row) {
         if (in_array((int)$row['id'], $pantryIds, true)) {
             continue;   // heb je al in huis
         }
         $list[$row['category']][] = [
-            'name'   => $row['name'],
-            'unit'   => $row['unit'],
-            'amount' => $row['total'] === null ? null : (float)$row['total'],
+            'name'    => $row['name'],
+            'unit'    => $row['unit'],
+            'amount'  => $row['total'] === null ? null : (float)$row['total'],
+            'checked' => isset($checked[$row['name']]),
         ];
     }
 
