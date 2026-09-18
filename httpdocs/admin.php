@@ -27,16 +27,16 @@ function syncIngredients(PDO $pdo, int $recipeId, string $raw): void
         }
     }
 
-    $pdo->prepare('DELETE FROM recipe_ingredient WHERE recipe_id = ?')->execute([$recipeId]);
+    $pdo->prepare('DELETE FROM {recipe_ingredient} WHERE recipe_id = ?')->execute([$recipeId]);
 
     if ($names === []) {
         return;
     }
 
-    $find   = $pdo->prepare('SELECT id FROM ingredient WHERE name = ?');
-    $create = $pdo->prepare('INSERT INTO ingredient (name, category, is_pantry_item) VALUES (?, ?, 0)');
+    $find   = $pdo->prepare('SELECT id FROM {ingredient} WHERE name = ?');
+    $create = $pdo->prepare('INSERT INTO {ingredient} (name, category, is_pantry_item) VALUES (?, ?, 0)');
     $link   = $pdo->prepare(
-        'INSERT IGNORE INTO recipe_ingredient (recipe_id, ingredient_id, is_key) VALUES (?, ?, 1)'
+        'INSERT IGNORE INTO {recipe_ingredient} (recipe_id, ingredient_id, is_key) VALUES (?, ?, 1)'
     );
 
     foreach (array_keys($names) as $name) {
@@ -85,7 +85,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
                 if ($id > 0) {
                     $pdo->prepare(
-                        'UPDATE recipe
+                        'UPDATE {recipe}
                             SET name = ?, category = ?, effort = ?, weekend_only = ?,
                                 notes = ?, url = ?, is_mine = ?
                           WHERE id = ?'
@@ -94,7 +94,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $notice = 'Recept bijgewerkt.';
                 } else {
                     $pdo->prepare(
-                        'INSERT INTO recipe (name, category, effort, weekend_only, notes, url, is_mine)
+                        'INSERT INTO {recipe} (name, category, effort, weekend_only, notes, url, is_mine)
                          VALUES (?, ?, ?, ?, ?, ?, ?)'
                     )->execute([$name, $category, $effort, $weekendOnly,
                                 $notes ?: null, $url ?: null, $isMine]);
@@ -105,21 +105,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 syncIngredients($pdo, $id, (string)($_POST['ingredients'] ?? ''));
 
             } elseif ($action === 'delete') {
-                $pdo->prepare('DELETE FROM recipe WHERE id = ?')->execute([(int)$_POST['id']]);
+                $pdo->prepare('DELETE FROM {recipe} WHERE id = ?')->execute([(int)$_POST['id']]);
                 $notice = 'Recept verwijderd.';
 
             } elseif ($action === 'toggle_active') {
-                $pdo->prepare('UPDATE recipe SET is_active = 1 - is_active WHERE id = ?')
+                $pdo->prepare('UPDATE {recipe} SET is_active = 1 - is_active WHERE id = ?')
                     ->execute([(int)$_POST['id']]);
                 $notice = 'Aan- of uitgezet.';
 
             } elseif ($action === 'save_pantry') {
                 $checked = array_map('intval', (array)($_POST['pantry'] ?? []));
-                $pdo->exec('UPDATE ingredient SET is_pantry_item = 0');
+                $pdo->exec('UPDATE {ingredient} SET is_pantry_item = 0');
 
                 if ($checked !== []) {
                     $in = implode(',', array_fill(0, count($checked), '?'));
-                    $pdo->prepare("UPDATE ingredient SET is_pantry_item = 1 WHERE id IN ($in)")
+                    $pdo->prepare("UPDATE {ingredient} SET is_pantry_item = 1 WHERE id IN ($in)")
                         ->execute($checked);
                 }
                 $notice = 'Voorraadlijst opgeslagen.';
@@ -135,14 +135,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
  * ------------------------------------------------------------------ */
 $editing = null;
 if (isset($_GET['edit'])) {
-    $stmt = $pdo->prepare('SELECT * FROM recipe WHERE id = ?');
+    $stmt = $pdo->prepare('SELECT * FROM {recipe} WHERE id = ?');
     $stmt->execute([(int)$_GET['edit']]);
     $editing = $stmt->fetch() ?: null;
 
     if ($editing) {
         $stmt = $pdo->prepare(
-            'SELECT i.name FROM recipe_ingredient ri
-               JOIN ingredient i ON i.id = ri.ingredient_id
+            'SELECT i.name FROM {recipe_ingredient} ri
+               JOIN {ingredient} i ON i.id = ri.ingredient_id
               WHERE ri.recipe_id = ?
               ORDER BY i.name'
         );
@@ -153,13 +153,13 @@ if (isset($_GET['edit'])) {
 
 $recipes = $pdo->query(
     'SELECT r.*, COUNT(ri.ingredient_id) AS ing_count
-       FROM recipe r
-  LEFT JOIN recipe_ingredient ri ON ri.recipe_id = r.id
+       FROM {recipe} r
+  LEFT JOIN {recipe_ingredient} ri ON ri.recipe_id = r.id
       GROUP BY r.id
       ORDER BY r.is_mine DESC, r.name'
 )->fetchAll();
 
-$ingredients = $pdo->query('SELECT id, name, category, is_pantry_item FROM ingredient ORDER BY category, name')->fetchAll();
+$ingredients = $pdo->query('SELECT id, name, category, is_pantry_item FROM {ingredient} ORDER BY category, name')->fetchAll();
 
 $val = static fn(string $key, $fallback = '') => $editing[$key] ?? $fallback;
 ?>

@@ -11,7 +11,7 @@ function loadPool(PDO $pdo, array $pantryIds, string $referenceWeek): array
 {
     $recipes = $pdo->query(
         'SELECT id, name, category, effort, weekend_only, notes, url
-           FROM recipe
+           FROM {recipe}
           WHERE is_active = 1'
     )->fetchAll();
 
@@ -24,8 +24,8 @@ function loadPool(PDO $pdo, array $pantryIds, string $referenceWeek): array
     $distance = [];
     $rows = $pdo->prepare(
         'SELECT me.recipe_id, MIN(ABS(DATEDIFF(mw.week_start, ?))) AS day_distance
-           FROM menu_entry me
-           JOIN menu_week mw ON mw.id = me.week_id
+           FROM {menu_entry} me
+           JOIN {menu_week} mw ON mw.id = me.week_id
           WHERE me.recipe_id IS NOT NULL
           GROUP BY me.recipe_id'
     );
@@ -42,7 +42,7 @@ function loadPool(PDO $pdo, array $pantryIds, string $referenceWeek): array
         $placeholders = implode(',', array_fill(0, count($pantryIds), '?'));
         $stmt = $pdo->prepare(
             "SELECT recipe_id, COUNT(*) AS hits
-               FROM recipe_ingredient
+               FROM {recipe_ingredient}
               WHERE is_key = 1 AND ingredient_id IN ($placeholders)
               GROUP BY recipe_id"
         );
@@ -189,19 +189,19 @@ function generateWeek(PDO $pdo, string $weekStart, array $pantryIds): int
     $pdo->beginTransaction();
     try {
         $pdo->prepare(
-            'INSERT INTO menu_week (week_start, pantry_json)
+            'INSERT INTO {menu_week} (week_start, pantry_json)
                   VALUES (?, ?)
              ON DUPLICATE KEY UPDATE pantry_json = VALUES(pantry_json), created_at = NOW()'
         )->execute([$weekStart, $pantryJson]);
 
-        $stmt = $pdo->prepare('SELECT id FROM menu_week WHERE week_start = ?');
+        $stmt = $pdo->prepare('SELECT id FROM {menu_week} WHERE week_start = ?');
         $stmt->execute([$weekStart]);
         $weekId = (int)$stmt->fetchColumn();
 
-        $pdo->prepare('DELETE FROM menu_entry WHERE week_id = ?')->execute([$weekId]);
+        $pdo->prepare('DELETE FROM {menu_entry} WHERE week_id = ?')->execute([$weekId]);
 
         $insert = $pdo->prepare(
-            'INSERT INTO menu_entry (week_id, day_index, recipe_id, is_junkfood)
+            'INSERT INTO {menu_entry} (week_id, day_index, recipe_id, is_junkfood)
                   VALUES (?, ?, ?, ?)'
         );
         foreach ($picks as $day => $recipeId) {
@@ -224,7 +224,7 @@ function rerollDay(PDO $pdo, int $weekId, int $dayIndex): ?array
         return null;
     }
 
-    $stmt = $pdo->prepare('SELECT week_start, pantry_json FROM menu_week WHERE id = ?');
+    $stmt = $pdo->prepare('SELECT week_start, pantry_json FROM {menu_week} WHERE id = ?');
     $stmt->execute([$weekId]);
     $week = $stmt->fetch();
     if (!$week) {
@@ -240,7 +240,7 @@ function rerollDay(PDO $pdo, int $weekId, int $dayIndex): ?array
 
     // Alles wat deze week al op het menu staat blijft buiten beschouwing.
     $stmt = $pdo->prepare(
-        'SELECT day_index, recipe_id FROM menu_entry
+        'SELECT day_index, recipe_id FROM {menu_entry}
           WHERE week_id = ? AND recipe_id IS NOT NULL'
     );
     $stmt->execute([$weekId]);
@@ -276,7 +276,7 @@ function rerollDay(PDO $pdo, int $weekId, int $dayIndex): ?array
     }
 
     $pdo->prepare(
-        'UPDATE menu_entry SET recipe_id = ? WHERE week_id = ? AND day_index = ?'
+        'UPDATE {menu_entry} SET recipe_id = ? WHERE week_id = ? AND day_index = ?'
     )->execute([$pick['id'], $weekId, $dayIndex]);
 
     return $pick;
@@ -285,7 +285,7 @@ function rerollDay(PDO $pdo, int $weekId, int $dayIndex): ?array
 /** Haalt een opgeslagen week op als array van 7 dagen. */
 function loadWeek(PDO $pdo, string $weekStart): ?array
 {
-    $stmt = $pdo->prepare('SELECT id, week_start, pantry_json FROM menu_week WHERE week_start = ?');
+    $stmt = $pdo->prepare('SELECT id, week_start, pantry_json FROM {menu_week} WHERE week_start = ?');
     $stmt->execute([$weekStart]);
     $week = $stmt->fetch();
     if (!$week) {
@@ -294,8 +294,8 @@ function loadWeek(PDO $pdo, string $weekStart): ?array
 
     $stmt = $pdo->prepare(
         'SELECT me.day_index, me.is_junkfood, r.id, r.name, r.category, r.effort, r.notes, r.url
-           FROM menu_entry me
-      LEFT JOIN recipe r ON r.id = me.recipe_id
+           FROM {menu_entry} me
+      LEFT JOIN {recipe} r ON r.id = me.recipe_id
           WHERE me.week_id = ?
           ORDER BY me.day_index'
     );
@@ -320,15 +320,15 @@ function loadWeek(PDO $pdo, string $weekStart): ?array
  */
 function shoppingList(PDO $pdo, int $weekId): array
 {
-    $stmt = $pdo->prepare('SELECT pantry_json FROM menu_week WHERE id = ?');
+    $stmt = $pdo->prepare('SELECT pantry_json FROM {menu_week} WHERE id = ?');
     $stmt->execute([$weekId]);
     $pantryIds = array_map('intval', json_decode((string)$stmt->fetchColumn(), true) ?: []);
 
     $stmt = $pdo->prepare(
         'SELECT DISTINCT i.id, i.name, i.category
-           FROM menu_entry me
-           JOIN recipe_ingredient ri ON ri.recipe_id = me.recipe_id
-           JOIN ingredient i ON i.id = ri.ingredient_id
+           FROM {menu_entry} me
+           JOIN {recipe_ingredient} ri ON ri.recipe_id = me.recipe_id
+           JOIN {ingredient} i ON i.id = ri.ingredient_id
           WHERE me.week_id = ?
           ORDER BY i.category, i.name'
     );

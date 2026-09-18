@@ -39,7 +39,8 @@ if (is_file(CONFIG_FILE)) {
                 DB_PASS,
                 [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION]
             );
-            $test->query('SELECT 1 FROM recipe LIMIT 1');
+            $existingPrefix = defined('DB_PREFIX') ? DB_PREFIX : '';
+            $test->query('SELECT 1 FROM `' . $existingPrefix . 'recipe` LIMIT 1');
             $alreadyInstalled = true;
         } catch (Throwable $e) {
             // Config bestaat maar werkt niet - laat het formulier zien.
@@ -51,9 +52,10 @@ if (is_file(CONFIG_FILE)) {
  * Formulier verwerken
  * ------------------------------------------------------------------ */
 $form = [
-    'db_host' => defined('DB_HOST') ? DB_HOST : 'localhost',
-    'db_name' => defined('DB_NAME') ? DB_NAME : '',
-    'db_user' => defined('DB_USER') ? DB_USER : '',
+    'db_host'   => defined('DB_HOST')   ? DB_HOST   : 'localhost',
+    'db_name'   => defined('DB_NAME')   ? DB_NAME   : '',
+    'db_user'   => defined('DB_USER')   ? DB_USER   : '',
+    'db_prefix' => defined('DB_PREFIX') ? DB_PREFIX : '',
 ];
 
 if (!$alreadyInstalled && $_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -62,15 +64,24 @@ if (!$alreadyInstalled && $_SERVER['REQUEST_METHOD'] === 'POST') {
         $errors[] = 'De pagina stond te lang open. Probeer het opnieuw.';
     }
 
-    $form['db_host'] = trim((string)($_POST['db_host'] ?? 'localhost'));
-    $form['db_name'] = trim((string)($_POST['db_name'] ?? ''));
-    $form['db_user'] = trim((string)($_POST['db_user'] ?? ''));
-    $dbPass          = (string)($_POST['db_pass'] ?? '');
-    $adminPass       = (string)($_POST['admin_pass'] ?? '');
+    $form['db_host']   = trim((string)($_POST['db_host'] ?? 'localhost'));
+    $form['db_name']   = trim((string)($_POST['db_name'] ?? ''));
+    $form['db_user']   = trim((string)($_POST['db_user'] ?? ''));
+    $form['db_prefix'] = trim((string)($_POST['db_prefix'] ?? ''));
+    $dbPass            = (string)($_POST['db_pass'] ?? '');
+    $adminPass         = (string)($_POST['admin_pass'] ?? '');
 
     if ($form['db_host'] === '') { $errors[] = 'Vul de databaseserver in (meestal localhost).'; }
     if ($form['db_name'] === '') { $errors[] = 'Vul de naam van de database in.'; }
     if ($form['db_user'] === '') { $errors[] = 'Vul de databasegebruiker in.'; }
+
+    // Het voorvoegsel komt rechtstreeks in de tabelnamen terecht, dus
+    // hier alleen letters, cijfers en liggende streepjes toestaan.
+    if (!preg_match('/^[A-Za-z0-9_]*$/', $form['db_prefix'])) {
+        $errors[] = 'Het voorvoegsel mag alleen letters, cijfers en _ bevatten.';
+    } elseif (strlen($form['db_prefix']) > 24) {
+        $errors[] = 'Houd het voorvoegsel korter dan 24 tekens.';
+    }
 
     if (mb_strlen($adminPass) < 8) {
         $errors[] = 'Kies een adminwachtwoord van minstens 8 tekens.';
@@ -108,7 +119,8 @@ if (!$alreadyInstalled && $_SERVER['REQUEST_METHOD'] === 'POST') {
             . 'define(' . var_export('DB_HOST', true) . ', ' . var_export($form['db_host'], true) . ");\n"
             . 'define(' . var_export('DB_NAME', true) . ', ' . var_export($form['db_name'], true) . ");\n"
             . 'define(' . var_export('DB_USER', true) . ', ' . var_export($form['db_user'], true) . ");\n"
-            . 'define(' . var_export('DB_PASS', true) . ', ' . var_export($dbPass, true) . ");\n\n"
+            . 'define(' . var_export('DB_PASS', true) . ', ' . var_export($dbPass, true) . ");\n"
+            . 'define(' . var_export('DB_PREFIX', true) . ', ' . var_export($form['db_prefix'], true) . ");\n\n"
             . 'define(' . var_export('ADMIN_PASSWORD', true) . ', ' . var_export($adminPass, true) . ");\n";
 
         if (@file_put_contents(CONFIG_FILE, $contents) === false) {
@@ -124,9 +136,14 @@ if (!$alreadyInstalled && $_SERVER['REQUEST_METHOD'] === 'POST') {
 
     /* --- tabellen --- */
     if (!$errors && $pdo !== null) {
+        // Voorvoegsel voor zowel de tabelnamen als de namen van de
+        // foreign keys. Die laatste moeten uniek zijn binnen de hele
+        // database, dus zonder voorvoegsel botsen twee installaties.
+        $p = $form['db_prefix'];
+
         $schema = [
-            'recipe' => "
-                CREATE TABLE IF NOT EXISTS recipe (
+            $p . 'recipe' => "
+                CREATE TABLE IF NOT EXISTS `{$p}recipe` (
                     id           INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
                     name         VARCHAR(160)  NOT NULL,
                     category     VARCHAR(40)   NOT NULL DEFAULT 'overig',
@@ -140,8 +157,8 @@ if (!$alreadyInstalled && $_SERVER['REQUEST_METHOD'] === 'POST') {
                     KEY idx_active (is_active)
                 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci",
 
-            'ingredient' => "
-                CREATE TABLE IF NOT EXISTS ingredient (
+            $p . 'ingredient' => "
+                CREATE TABLE IF NOT EXISTS `{$p}ingredient` (
                     id             INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
                     name           VARCHAR(80) NOT NULL,
                     category       VARCHAR(40) NOT NULL DEFAULT 'rest',
@@ -150,19 +167,19 @@ if (!$alreadyInstalled && $_SERVER['REQUEST_METHOD'] === 'POST') {
                     KEY idx_pantry (is_pantry_item)
                 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci",
 
-            'recipe_ingredient' => "
-                CREATE TABLE IF NOT EXISTS recipe_ingredient (
+            $p . 'recipe_ingredient' => "
+                CREATE TABLE IF NOT EXISTS `{$p}recipe_ingredient` (
                     recipe_id     INT UNSIGNED NOT NULL,
                     ingredient_id INT UNSIGNED NOT NULL,
                     is_key        TINYINT(1)   NOT NULL DEFAULT 1,
                     PRIMARY KEY (recipe_id, ingredient_id),
                     KEY idx_ingredient (ingredient_id),
-                    CONSTRAINT fk_ri_recipe     FOREIGN KEY (recipe_id)     REFERENCES recipe(id)     ON DELETE CASCADE,
-                    CONSTRAINT fk_ri_ingredient FOREIGN KEY (ingredient_id) REFERENCES ingredient(id) ON DELETE CASCADE
+                    CONSTRAINT `{$p}fk_ri_recipe`     FOREIGN KEY (recipe_id)     REFERENCES `{$p}recipe`(id)     ON DELETE CASCADE,
+                    CONSTRAINT `{$p}fk_ri_ingredient` FOREIGN KEY (ingredient_id) REFERENCES `{$p}ingredient`(id) ON DELETE CASCADE
                 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci",
 
-            'menu_week' => "
-                CREATE TABLE IF NOT EXISTS menu_week (
+            $p . 'menu_week' => "
+                CREATE TABLE IF NOT EXISTS `{$p}menu_week` (
                     id          INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
                     week_start  DATE     NOT NULL,
                     pantry_json TEXT     NULL,
@@ -170,8 +187,8 @@ if (!$alreadyInstalled && $_SERVER['REQUEST_METHOD'] === 'POST') {
                     UNIQUE KEY uniq_week (week_start)
                 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci",
 
-            'menu_entry' => "
-                CREATE TABLE IF NOT EXISTS menu_entry (
+            $p . 'menu_entry' => "
+                CREATE TABLE IF NOT EXISTS `{$p}menu_entry` (
                     id          INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
                     week_id     INT UNSIGNED NOT NULL,
                     day_index   TINYINT UNSIGNED NOT NULL,
@@ -179,8 +196,8 @@ if (!$alreadyInstalled && $_SERVER['REQUEST_METHOD'] === 'POST') {
                     is_junkfood TINYINT(1)   NOT NULL DEFAULT 0,
                     UNIQUE KEY uniq_week_day (week_id, day_index),
                     KEY idx_recipe (recipe_id),
-                    CONSTRAINT fk_me_week   FOREIGN KEY (week_id)   REFERENCES menu_week(id) ON DELETE CASCADE,
-                    CONSTRAINT fk_me_recipe FOREIGN KEY (recipe_id) REFERENCES recipe(id)    ON DELETE SET NULL
+                    CONSTRAINT `{$p}fk_me_week`   FOREIGN KEY (week_id)   REFERENCES `{$p}menu_week`(id) ON DELETE CASCADE,
+                    CONSTRAINT `{$p}fk_me_recipe` FOREIGN KEY (recipe_id) REFERENCES `{$p}recipe`(id)    ON DELETE SET NULL
                 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci",
         ];
 
@@ -197,7 +214,7 @@ if (!$alreadyInstalled && $_SERVER['REQUEST_METHOD'] === 'POST') {
     /* --- startrecepten --- */
     if (!$errors && $pdo !== null) {
         try {
-            $count = (int)$pdo->query('SELECT COUNT(*) FROM recipe')->fetchColumn();
+            $count = (int)$pdo->query("SELECT COUNT(*) FROM `{$p}recipe`")->fetchColumn();
 
             if ($count > 0) {
                 $log[] = "Er stonden al $count recepten in de database. "
@@ -206,27 +223,27 @@ if (!$alreadyInstalled && $_SERVER['REQUEST_METHOD'] === 'POST') {
                 $pdo->beginTransaction();
 
                 $insIng = $pdo->prepare(
-                    'INSERT INTO ingredient (name, category, is_pantry_item) VALUES (?, ?, ?)
-                     ON DUPLICATE KEY UPDATE category = VALUES(category), is_pantry_item = VALUES(is_pantry_item)'
+                    "INSERT INTO `{$p}ingredient` (name, category, is_pantry_item) VALUES (?, ?, ?)
+                     ON DUPLICATE KEY UPDATE category = VALUES(category), is_pantry_item = VALUES(is_pantry_item)"
                 );
                 foreach (seedIngredients() as [$name, $cat, $pantry]) {
                     $insIng->execute([$name, $cat, $pantry]);
                 }
 
                 $ingIds = [];
-                foreach ($pdo->query('SELECT id, name FROM ingredient') as $row) {
+                foreach ($pdo->query("SELECT id, name FROM `{$p}ingredient`") as $row) {
                     $ingIds[$row['name']] = (int)$row['id'];
                 }
 
                 $insRec = $pdo->prepare(
-                    'INSERT INTO recipe (name, category, effort, weekend_only, notes, url, is_mine)
-                     VALUES (?, ?, ?, ?, ?, ?, 0)'
+                    "INSERT INTO `{$p}recipe` (name, category, effort, weekend_only, notes, url, is_mine)
+                     VALUES (?, ?, ?, ?, ?, ?, 0)"
                 );
                 $insLink = $pdo->prepare(
-                    'INSERT IGNORE INTO recipe_ingredient (recipe_id, ingredient_id, is_key) VALUES (?, ?, 1)'
+                    "INSERT IGNORE INTO `{$p}recipe_ingredient` (recipe_id, ingredient_id, is_key) VALUES (?, ?, 1)"
                 );
                 $insMissing = $pdo->prepare(
-                    'INSERT INTO ingredient (name, category, is_pantry_item) VALUES (?, ?, 0)'
+                    "INSERT INTO `{$p}ingredient` (name, category, is_pantry_item) VALUES (?, ?, 0)"
                 );
 
                 $recipes = seedRecipes();
@@ -345,6 +362,20 @@ if (empty($_SESSION['csrf'])) {
             <div class="field">
                 <label for="db_pass">Wachtwoord van de database</label>
                 <input type="password" id="db_pass" name="db_pass" autocomplete="new-password">
+            </div>
+
+            <div class="field">
+                <label for="db_prefix">Voorvoegsel voor de tabellen</label>
+                <input type="text" id="db_prefix" name="db_prefix" maxlength="24"
+                       pattern="[A-Za-z0-9_]*" placeholder="weekmenu_"
+                       value="<?= esc($form['db_prefix']) ?>">
+                <p class="field-hint">
+                    Leeg laten mag: de tabellen heten dan gewoon <code>recipe</code>,
+                    <code>ingredient</code> enzovoort. Deel je deze database met een
+                    andere site, vul dan bijvoorbeeld <code>weekmenu_</code> in &mdash;
+                    de tabellen heten dan <code>weekmenu_recipe</code>. Vergeet het
+                    liggende streepje aan het eind niet.
+                </p>
             </div>
 
             <hr style="border:0;border-top:1px solid var(--border);margin:22px 0">

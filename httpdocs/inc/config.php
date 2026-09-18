@@ -23,6 +23,10 @@ defined('DB_USER')    or define('DB_USER',    'weekmenu');
 defined('DB_PASS')    or define('DB_PASS',    'VERANDER_MIJ');
 defined('DB_CHARSET') or define('DB_CHARSET', 'utf8mb4');
 
+// Voorvoegsel voor de tabelnamen, bijvoorbeeld 'weekmenu_'. Alleen nodig
+// als je de database deelt met een andere site. Leeg laten is prima.
+defined('DB_PREFIX') or define('DB_PREFIX', '');
+
 /* ---------------------------------------------------------------
  * Admin paneel - kies hier je eigen wachtwoord
  * --------------------------------------------------------------- */

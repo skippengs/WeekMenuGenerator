@@ -39,7 +39,7 @@ if (isset($input['pantry']) && is_array($input['pantry'])) {
 try {
     $pdo = db();
 
-    if ((int)$pdo->query('SELECT COUNT(*) FROM recipe WHERE is_active = 1')->fetchColumn() === 0) {
+    if ((int)$pdo->query('SELECT COUNT(*) FROM {recipe} WHERE is_active = 1')->fetchColumn() === 0) {
         jsonOut(['error' => 'Er staan nog geen recepten in de database.'], 422);
     }
 

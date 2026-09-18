@@ -21,7 +21,7 @@ $nextWeek = (new DateTimeImmutable($current))->modify('+7 days')->format('Y-m-d'
 // Voorraaditems voor het popup-venster, gegroepeerd.
 $pantryGroups = [];
 $stmt = $pdo->query(
-    'SELECT id, name, category FROM ingredient
+    'SELECT id, name, category FROM {ingredient}
       WHERE is_pantry_item = 1
       ORDER BY category, name'
 );
@@ -39,12 +39,12 @@ const PANTRY_GROUP_LABELS = [
 // Vink standaard aan wat je de vorige keer ook aanvinkte.
 $defaultPantry = $week['pantry'] ?? [];
 if ($defaultPantry === []) {
-    $last = $pdo->query('SELECT pantry_json FROM menu_week ORDER BY week_start DESC LIMIT 1')->fetchColumn();
+    $last = $pdo->query('SELECT pantry_json FROM {menu_week} ORDER BY week_start DESC LIMIT 1')->fetchColumn();
     $defaultPantry = is_string($last) ? (json_decode($last, true) ?: []) : [];
 }
 $defaultPantry = array_map('intval', $defaultPantry);
 
-$recipeCount = (int)$pdo->query('SELECT COUNT(*) FROM recipe WHERE is_active = 1')->fetchColumn();
+$recipeCount = (int)$pdo->query('SELECT COUNT(*) FROM {recipe} WHERE is_active = 1')->fetchColumn();
 ?>
 <!DOCTYPE html>
 <html lang="nl">

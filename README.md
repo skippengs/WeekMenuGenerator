@@ -65,7 +65,15 @@ Ga naar `https://jouwdomein.nl/install.php`. Daar vul je in:
 
 - Databaseserver (bij mijndomein: `localhost`)
 - Naam van de database, gebruiker en wachtwoord — uit stap 1
+- Een voorvoegsel voor de tabellen, optioneel — zie hieronder
 - Een adminwachtwoord dat je zelf kiest, minstens 8 tekens
+
+**Voorvoegsel.** Leeg laten mag: de tabellen heten dan `recipe`,
+`ingredient`, `menu_week` enzovoort. Deel je die ene database met een
+andere site, vul dan bijvoorbeeld `weekmenu_` in. De tabellen heten dan
+`weekmenu_recipe` en zitten elkaar niet in de weg. Het voorvoegsel geldt
+ook voor de foreign keys, want die namen moeten binnen de hele database
+uniek zijn.
 
 De installer test eerst of de verbinding werkt, schrijft de gegevens naar
 `inc/config.local.php`, maakt de tabellen aan en zet er 45 recepten in.
