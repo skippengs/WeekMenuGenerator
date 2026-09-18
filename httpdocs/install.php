@@ -149,6 +149,7 @@ if (!$alreadyInstalled && $_SERVER['REQUEST_METHOD'] === 'POST') {
                     category     VARCHAR(40)   NOT NULL DEFAULT 'overig',
                     effort       TINYINT UNSIGNED NOT NULL DEFAULT 2,
                     weekend_only TINYINT(1)    NOT NULL DEFAULT 0,
+                    servings     TINYINT UNSIGNED NOT NULL DEFAULT 4,
                     notes        TEXT          NULL,
                     steps        TEXT          NULL,
                     url          VARCHAR(400)  NULL,
@@ -173,6 +174,8 @@ if (!$alreadyInstalled && $_SERVER['REQUEST_METHOD'] === 'POST') {
                     recipe_id     INT UNSIGNED NOT NULL,
                     ingredient_id INT UNSIGNED NOT NULL,
                     is_key        TINYINT(1)   NOT NULL DEFAULT 1,
+                    amount        DECIMAL(8,2) NULL,
+                    unit          VARCHAR(20)  NULL,
                     PRIMARY KEY (recipe_id, ingredient_id),
                     KEY idx_ingredient (ingredient_id),
                     CONSTRAINT `{$p}fk_ri_recipe`     FOREIGN KEY (recipe_id)     REFERENCES `{$p}recipe`(id)     ON DELETE CASCADE,
@@ -237,11 +240,12 @@ if (!$alreadyInstalled && $_SERVER['REQUEST_METHOD'] === 'POST') {
                 }
 
                 $insRec = $pdo->prepare(
-                    "INSERT INTO `{$p}recipe` (name, category, effort, weekend_only, notes, steps, url, is_mine)
-                     VALUES (?, ?, ?, ?, ?, ?, ?, 0)"
+                    "INSERT INTO `{$p}recipe` (name, category, effort, weekend_only, servings, notes, steps, url, is_mine)
+                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0)"
                 );
                 $insLink = $pdo->prepare(
-                    "INSERT IGNORE INTO `{$p}recipe_ingredient` (recipe_id, ingredient_id, is_key) VALUES (?, ?, 1)"
+                    "INSERT IGNORE INTO `{$p}recipe_ingredient` (recipe_id, ingredient_id, is_key, amount, unit)
+                     VALUES (?, ?, 1, ?, ?)"
                 );
                 $insMissing = $pdo->prepare(
                     "INSERT INTO `{$p}ingredient` (name, category, is_pantry_item) VALUES (?, ?, 0)"
@@ -251,16 +255,17 @@ if (!$alreadyInstalled && $_SERVER['REQUEST_METHOD'] === 'POST') {
                 foreach ($recipes as $r) {
                     $insRec->execute([
                         $r['name'], $r['category'], $r['effort'], $r['weekend_only'],
-                        $r['notes'] ?? null, $r['steps'] ?? null, $r['url'] ?? null,
+                        $r['servings'] ?? 4, $r['notes'] ?? null, $r['steps'] ?? null,
+                        $r['url'] ?? null,
                     ]);
                     $recipeId = (int)$pdo->lastInsertId();
 
-                    foreach ($r['ingredients'] as $ingName) {
+                    foreach ($r['ingredients'] as [$ingName, $amount, $unit]) {
                         if (!isset($ingIds[$ingName])) {
                             $insMissing->execute([$ingName, 'rest']);
                             $ingIds[$ingName] = (int)$pdo->lastInsertId();
                         }
-                        $insLink->execute([$recipeId, $ingIds[$ingName]]);
+                        $insLink->execute([$recipeId, $ingIds[$ingName], $amount, $unit]);
                     }
                 }
 

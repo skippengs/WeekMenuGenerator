@@ -155,15 +155,33 @@ $recipeCount = (int)$pdo->query('SELECT COUNT(*) FROM {recipe} WHERE is_active =
 
         <?php if ($shopping !== []): ?>
             <section class="shopping">
-                <h2>Boodschappenlijst</h2>
-                <p class="hint">Alles wat de recepten van deze week nodig hebben, minus wat je al in huis had.</p>
+                <div class="shopping-head">
+                    <div>
+                        <h2>Boodschappenlijst</h2>
+                        <p class="hint">Alles wat de recepten van deze week nodig hebben, minus wat je al in huis had.</p>
+                    </div>
+                    <div class="servings" data-servings-control>
+                        <button class="servings-btn" data-servings="-1" aria-label="Minder personen">&minus;</button>
+                        <span class="servings-value"><span data-servings-value>4</span> pers.</span>
+                        <button class="servings-btn" data-servings="1" aria-label="Meer personen">+</button>
+                    </div>
+                </div>
                 <div class="shopping-groups">
                     <?php foreach ($shopping as $group => $items): ?>
                         <div class="shopping-group">
                             <h3><?= esc(PANTRY_GROUP_LABELS[$group] ?? ucfirst($group)) ?></h3>
                             <ul>
                                 <?php foreach ($items as $item): ?>
-                                    <li><label><input type="checkbox"> <?= esc($item) ?></label></li>
+                                    <li>
+                                        <label>
+                                            <input type="checkbox">
+                                            <span>
+                                                <span class="shop-amount"
+                                                      data-per-person="<?= $item['per_person'] !== null ? esc((string)round($item['per_person'], 4)) : '' ?>"
+                                                      data-unit="<?= esc((string)$item['unit']) ?>"></span><?= esc($item['name']) ?>
+                                            </span>
+                                        </label>
+                                    </li>
                                 <?php endforeach; ?>
                             </ul>
                         </div>
@@ -233,7 +251,14 @@ $recipeCount = (int)$pdo->query('SELECT COUNT(*) FROM {recipe} WHERE is_active =
             <div class="recipe-meta" id="recipeMeta"></div>
             <p class="recipe-note" id="recipeNotes"></p>
 
-            <h3 class="detail-head">Nodig</h3>
+            <div class="detail-servings">
+                <h3 class="detail-head">Nodig</h3>
+                <div class="servings" data-servings-control>
+                    <button class="servings-btn" data-servings="-1" aria-label="Minder personen">&minus;</button>
+                    <span class="servings-value"><span data-servings-value>4</span> pers.</span>
+                    <button class="servings-btn" data-servings="1" aria-label="Meer personen">+</button>
+                </div>
+            </div>
             <ul class="detail-ingredients" id="recipeIngredients"></ul>
 
             <h3 class="detail-head">Bereiding</h3>

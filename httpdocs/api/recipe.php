@@ -18,7 +18,7 @@ try {
     $pdo = db();
 
     $stmt = $pdo->prepare(
-        'SELECT id, name, category, effort, notes, steps, url
+        'SELECT id, name, category, effort, servings, notes, steps, url
            FROM {recipe}
           WHERE id = ?'
     );
@@ -30,14 +30,22 @@ try {
     }
 
     $stmt = $pdo->prepare(
-        'SELECT i.name
+        'SELECT i.name, ri.amount, ri.unit
            FROM {recipe_ingredient} ri
            JOIN {ingredient} i ON i.id = ri.ingredient_id
           WHERE ri.recipe_id = ?
           ORDER BY i.category, i.name'
     );
     $stmt->execute([$id]);
-    $ingredients = $stmt->fetchAll(PDO::FETCH_COLUMN);
+
+    $ingredients = [];
+    foreach ($stmt as $row) {
+        $ingredients[] = [
+            'name'   => $row['name'],
+            'amount' => $row['amount'] === null ? null : (float)$row['amount'],
+            'unit'   => $row['unit'],
+        ];
+    }
 } catch (Throwable $e) {
     jsonOut(['error' => 'Ophalen mislukt'], 500);
 }
@@ -57,6 +65,7 @@ jsonOut([
     'name'        => $recipe['name'],
     'category'    => CATEGORIES[$recipe['category']] ?? $recipe['category'],
     'effort'      => EFFORTS[(int)$recipe['effort']] ?? '',
+    'servings'    => (int)$recipe['servings'],
     'notes'       => (string)$recipe['notes'],
     'url'         => (string)$recipe['url'],
     'ingredients' => $ingredients,

@@ -104,6 +104,95 @@
         });
     }
 
+    /* ---------- aantal personen ---------- */
+
+    var SERVINGS_KEY = 'weekmenu-personen';
+    var servings = 4;
+
+    try {
+        var stored = parseInt(localStorage.getItem(SERVINGS_KEY), 10);
+        if (stored >= 1 && stored <= 20) { servings = stored; }
+    } catch (err) { /* geen opslag, blijf op 4 */ }
+
+    /*
+     * Afronden op iets wat je in een keuken kunt gebruiken. 266,67 gram
+     * gehakt koopt niemand, dus dat wordt 270.
+     */
+    function roundAmount(value, unit) {
+        if (unit === 'g' || unit === 'ml') {
+            if (value >= 100) { return Math.round(value / 10) * 10; }
+            if (value >= 20)  { return Math.round(value / 5) * 5; }
+            return Math.round(value);
+        }
+        if (unit === 'kg' || unit === 'l') {
+            return Math.round(value * 10) / 10;
+        }
+        // Telbaar, blikken, tenen knoflook: halve stuks zijn nog te doen.
+        return Math.round(value * 2) / 2;
+    }
+
+    function formatAmount(value, unit) {
+        if (value === null || isNaN(value)) { return ''; }
+
+        // Boven de duizend gram schrijf je kilo's op je boodschappenlijstje,
+        // geen "2000 g aardappelen".
+        if ((unit === 'g' || unit === 'ml') && value >= 1000) {
+            value = value / 1000;
+            unit  = unit === 'g' ? 'kg' : 'l';
+        }
+
+        var rounded = roundAmount(value, unit);
+        if (rounded <= 0) { return ''; }
+
+        var text = String(rounded).replace('.', ',');   // Nederlandse komma
+        return unit ? text + ' ' + unit + ' ' : text + ' ';
+    }
+
+    /** Zet alle hoeveelheden op de pagina om naar het huidige aantal personen. */
+    function renderServings() {
+        Array.prototype.forEach.call(
+            document.querySelectorAll('[data-servings-value]'),
+            function (el) { el.textContent = servings; }
+        );
+
+        // Boodschappenlijst: opgeslagen per persoon, dus keer het aantal.
+        Array.prototype.forEach.call(
+            document.querySelectorAll('.shop-amount'),
+            function (el) {
+                var per = parseFloat(el.getAttribute('data-per-person'));
+                if (isNaN(per)) { el.textContent = ''; return; }
+                el.textContent = formatAmount(per * servings, el.getAttribute('data-unit'));
+            }
+        );
+
+        // Receptvenster: opgeslagen voor de basis van dat recept.
+        var list = document.getElementById('recipeIngredients');
+        if (list && list.dataset.base) {
+            var factor = servings / parseInt(list.dataset.base, 10);
+            Array.prototype.forEach.call(list.querySelectorAll('li'), function (li) {
+                var amountEl = li.querySelector('.detail-amount');
+                if (!amountEl) { return; }
+                var base = parseFloat(amountEl.getAttribute('data-amount'));
+                if (isNaN(base)) { amountEl.textContent = ''; return; }
+                amountEl.textContent = formatAmount(base * factor, amountEl.getAttribute('data-unit'));
+            });
+        }
+    }
+
+    document.addEventListener('click', function (e) {
+        var btn = e.target.closest('[data-servings]');
+        if (!btn) { return; }
+
+        e.preventDefault();
+
+        var next = servings + parseInt(btn.getAttribute('data-servings'), 10);
+        if (next < 1 || next > 20) { return; }
+
+        servings = next;
+        try { localStorage.setItem(SERVINGS_KEY, String(servings)); } catch (err) { /* niet erg */ }
+        renderServings();
+    });
+
     /* ---------- recept bekijken ---------- */
 
     var recipeModal = document.getElementById('recipeModal');
@@ -123,6 +212,7 @@
         document.getElementById('recipeTitle').textContent = 'Bezig met laden...';
         document.getElementById('recipeMeta').innerHTML = '';
         document.getElementById('recipeIngredients').innerHTML = '';
+        delete document.getElementById('recipeIngredients').dataset.base;
         document.getElementById('recipeSteps').innerHTML = '';
         document.getElementById('recipeNotes').textContent = '';
         document.getElementById('recipeHint').textContent = '';
@@ -146,8 +236,25 @@
 
                 document.getElementById('recipeNotes').textContent = data.notes || '';
 
-                fillList(document.getElementById('recipeIngredients'), data.ingredients, 'li');
+                var list = document.getElementById('recipeIngredients');
+                list.innerHTML = '';
+                list.dataset.base = data.servings || 4;
+
+                data.ingredients.forEach(function (ing) {
+                    var li = document.createElement('li');
+                    var amount = document.createElement('span');
+                    amount.className = 'detail-amount';
+                    amount.setAttribute('data-amount', ing.amount === null ? '' : ing.amount);
+                    amount.setAttribute('data-unit', ing.unit || '');
+                    li.appendChild(amount);
+                    li.appendChild(document.createTextNode(ing.name));
+                    list.appendChild(li);
+                });
+
                 fillList(document.getElementById('recipeSteps'), data.steps, 'li');
+
+                // Hoeveelheden meteen naar het ingestelde aantal personen.
+                renderServings();
 
                 if (!data.steps.length) {
                     document.getElementById('recipeHint').textContent =
@@ -240,6 +347,8 @@
         el.textContent = value || '';
         el.classList.toggle('is-empty', !value);
     }
+
+    renderServings();
 
     /* ---------- boodschappenlijst onthouden per week ---------- */
 

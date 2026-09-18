@@ -10,7 +10,8 @@ wordt overgeslagen. Draait op gewone PHP-webhosting met MySQL.
 - Eigen recepten toevoegen via een admin paneel
 - Losse dag opnieuw gooien zonder de rest van de week kwijt te raken
 - Boodschappenlijst van wat je nog moet halen
-- Klik op een gerecht voor de ingredienten en een korte bereiding
+- Klik op een gerecht voor de ingredienten, hoeveelheden en een korte bereiding
+- Knop voor het aantal personen; alle hoeveelheden rekenen mee
 - 47 Nederlandse recepten om mee te beginnen, met bereiding
 
 ## Installeren op mijndomein.nl
@@ -157,6 +158,21 @@ recepten en voegt nieuwe toe. Je eigen recepten blijven ongemoeid.
 Meegeleverde recepten die uit de lijst zijn gehaald worden op non-actief
 gezet, niet verwijderd, zodat je weekgeschiedenis heel blijft. Via
 Recepten beheren kun je ze weer aanzetten.
+
+### Hoeveelheden
+
+Recepten zijn ingevuld voor vier personen. Met de knop boven de
+ingredienten of boven de boodschappenlijst zet je dat hoger of lager; de
+app rekent alles om en onthoudt je keuze op dat apparaat.
+
+Bij het toevoegen van een eigen recept zet je de hoeveelheid voorop:
+`400 g gehakt`, `2 teen knoflook`, `1 blik tomatenblokjes`. Een regel
+zonder hoeveelheid mag ook. Vul bij **Voor hoeveel personen** in waar die
+hoeveelheden bij horen.
+
+De boodschappenlijst telt alles per persoon bij elkaar op en
+vermenigvuldigt dat met het aantal personen, dus recepten met een
+verschillende basis kunnen gewoon door elkaar staan.
 
 Pas je `app.css` of `app.js` aan, verhoog dan ook `CACHE` bovenin
 `sw.js`. De service worker ververst bestanden op de achtergrond, maar een

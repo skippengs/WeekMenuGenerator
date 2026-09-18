@@ -734,3 +734,86 @@ code {
 }
 
 .modal-card-recipe .modal-foot .hint { flex: 1; }
+
+/* ---------- aantal personen ---------- */
+
+.servings {
+    display: inline-flex;
+    align-items: center;
+    gap: 2px;
+    padding: 3px;
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    background: var(--surface);
+    white-space: nowrap;
+}
+
+.servings-btn {
+    width: 28px;
+    height: 28px;
+    border: 0;
+    border-radius: 50%;
+    background: var(--surface-alt);
+    color: var(--text);
+    font: inherit;
+    font-size: 16px;
+    line-height: 1;
+    cursor: pointer;
+}
+
+.servings-btn:hover { background: var(--accent); color: #fff; }
+
+@media (prefers-color-scheme: dark) {
+    .servings-btn:hover { color: #10231a; }
+}
+
+.servings-value {
+    min-width: 62px;
+    text-align: center;
+    font-size: 13px;
+    font-weight: 600;
+}
+
+.shopping-head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 16px;
+    margin-bottom: 16px;
+}
+
+.shopping-head h2 { margin-bottom: 4px; }
+.shopping-head .hint { margin: 0; }
+
+.detail-servings {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 10px;
+}
+
+.detail-servings .detail-head { margin: 0; }
+
+.detail-amount,
+.shop-amount {
+    font-weight: 650;
+    font-variant-numeric: tabular-nums;
+}
+
+.detail-amount { color: var(--accent); }
+
+.field input[type="number"] {
+    width: 100%;
+    padding: 9px 11px;
+    border: 1px solid var(--border);
+    border-radius: 9px;
+    background: var(--bg);
+    color: var(--text);
+    font: inherit;
+    font-size: 14px;
+}
+
+@media (max-width: 700px) {
+    .shopping-head { flex-direction: column; }
+}

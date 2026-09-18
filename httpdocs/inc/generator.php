@@ -324,12 +324,17 @@ function shoppingList(PDO $pdo, int $weekId): array
     $stmt->execute([$weekId]);
     $pantryIds = array_map('intval', json_decode((string)$stmt->fetchColumn(), true) ?: []);
 
+    // Per persoon optellen, want recepten kunnen een andere basis hebben.
+    // De pagina vermenigvuldigt dat daarna met het aantal personen.
     $stmt = $pdo->prepare(
-        'SELECT DISTINCT i.id, i.name, i.category
+        'SELECT i.id, i.name, i.category, ri.unit,
+                SUM(ri.amount / r.servings) AS per_person
            FROM {menu_entry} me
+           JOIN {recipe} r ON r.id = me.recipe_id
            JOIN {recipe_ingredient} ri ON ri.recipe_id = me.recipe_id
            JOIN {ingredient} i ON i.id = ri.ingredient_id
           WHERE me.week_id = ?
+          GROUP BY i.id, i.name, i.category, ri.unit
           ORDER BY i.category, i.name'
     );
     $stmt->execute([$weekId]);
@@ -339,7 +344,11 @@ function shoppingList(PDO $pdo, int $weekId): array
         if (in_array((int)$row['id'], $pantryIds, true)) {
             continue;   // heb je al in huis
         }
-        $list[$row['category']][] = $row['name'];
+        $list[$row['category']][] = [
+            'name'       => $row['name'],
+            'unit'       => $row['unit'],
+            'per_person' => $row['per_person'] === null ? null : (float)$row['per_person'],
+        ];
     }
 
     return $list;

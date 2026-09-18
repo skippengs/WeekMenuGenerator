@@ -17,29 +17,74 @@ $error  = null;
 /* ------------------------------------------------------------------
  * Ingredienten uit een tekstveld naar de koppeltabel
  * ------------------------------------------------------------------ */
+const UNITS = ['g', 'gram', 'kg', 'ml', 'l', 'liter', 'el', 'tl', 'teen', 'tenen',
+               'blik', 'blikje', 'pak', 'pakje', 'pot', 'bosje', 'snuf', 'plak', 'plakken'];
+
+/**
+ * Leest een regel als "400 g gehakt", "2 teen knoflook" of gewoon "ui".
+ * Geeft [naam, hoeveelheid, eenheid] terug, of null bij een lege regel.
+ */
+function parseIngredientLine(string $line): ?array
+{
+    $line   = trim($line);
+    $amount = null;
+    $unit   = null;
+
+    if ($line === '') {
+        return null;
+    }
+
+    // Begint de regel met een getal? Dan is dat de hoeveelheid.
+    if (preg_match('/^([0-9]+(?:[.,][0-9]+)?)\\s+(.*)$/u', $line, $m)) {
+        $amount = (float)str_replace(',', '.', $m[1]);
+        $line   = trim($m[2]);
+
+        // Staat daar een eenheid achter, dan hoort die er ook bij.
+        $parts = preg_split('/\\s+/u', $line, 2);
+        if ($parts !== false && count($parts) === 2 && in_array(mb_strtolower($parts[0]), UNITS, true)) {
+            $unit = mb_strtolower($parts[0]);
+            $line = trim($parts[1]);
+
+            // Schrijfwijzen gelijktrekken.
+            $same = ['gram' => 'g', 'liter' => 'l', 'tenen' => 'teen',
+                     'blikje' => 'blik', 'pakje' => 'pak', 'plakken' => 'plak'];
+            $unit = $same[$unit] ?? $unit;
+        }
+    }
+
+    $name = mb_strtolower(trim($line));
+    if ($name === '' || mb_strlen($name) > 80) {
+        return null;
+    }
+
+    return [$name, $amount, $unit];
+}
+
 function syncIngredients(PDO $pdo, int $recipeId, string $raw): void
 {
-    $names = [];
-    foreach (preg_split('/[,\n]/', $raw) ?: [] as $part) {
-        $name = mb_strtolower(trim($part));
-        if ($name !== '' && mb_strlen($name) <= 80) {
-            $names[$name] = true;
+    // Regel voor regel, niet op komma's: die zitten in "0,5 l melk".
+    $rows = [];
+    foreach (preg_split('/\\r\\n|\\r|\\n/', $raw) ?: [] as $line) {
+        $parsed = parseIngredientLine($line);
+        if ($parsed !== null) {
+            $rows[$parsed[0]] = $parsed;   // zelfde naam twee keer: laatste wint
         }
     }
 
     $pdo->prepare('DELETE FROM {recipe_ingredient} WHERE recipe_id = ?')->execute([$recipeId]);
 
-    if ($names === []) {
+    if ($rows === []) {
         return;
     }
 
     $find   = $pdo->prepare('SELECT id FROM {ingredient} WHERE name = ?');
     $create = $pdo->prepare('INSERT INTO {ingredient} (name, category, is_pantry_item) VALUES (?, ?, 0)');
     $link   = $pdo->prepare(
-        'INSERT IGNORE INTO {recipe_ingredient} (recipe_id, ingredient_id, is_key) VALUES (?, ?, 1)'
+        'INSERT IGNORE INTO {recipe_ingredient} (recipe_id, ingredient_id, is_key, amount, unit)
+         VALUES (?, ?, 1, ?, ?)'
     );
 
-    foreach (array_keys($names) as $name) {
+    foreach ($rows as [$name, $amount, $unit]) {
         $find->execute([$name]);
         $id = $find->fetchColumn();
 
@@ -48,7 +93,7 @@ function syncIngredients(PDO $pdo, int $recipeId, string $raw): void
             $id = $pdo->lastInsertId();
         }
 
-        $link->execute([$recipeId, (int)$id]);
+        $link->execute([$recipeId, (int)$id, $amount, $unit]);
     }
 }
 
@@ -69,6 +114,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $category    = (string)($_POST['category'] ?? 'overig');
                 $effort      = (int)($_POST['effort'] ?? 2);
                 $weekendOnly = isset($_POST['weekend_only']) ? 1 : 0;
+                $servings    = max(1, min(20, (int)($_POST['servings'] ?? 4)));
                 $isMine      = isset($_POST['is_mine']) ? 1 : 0;
                 $notes       = trim((string)($_POST['notes'] ?? ''));
                 $steps       = trim((string)($_POST['steps'] ?? ''));
@@ -88,16 +134,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $pdo->prepare(
                         'UPDATE {recipe}
                             SET name = ?, category = ?, effort = ?, weekend_only = ?,
-                                notes = ?, steps = ?, url = ?, is_mine = ?
+                                servings = ?, notes = ?, steps = ?, url = ?, is_mine = ?
                           WHERE id = ?'
-                    )->execute([$name, $category, $effort, $weekendOnly,
+                    )->execute([$name, $category, $effort, $weekendOnly, $servings,
                                 $notes ?: null, $steps ?: null, $url ?: null, $isMine, $id]);
                     $notice = 'Recept bijgewerkt.';
                 } else {
                     $pdo->prepare(
-                        'INSERT INTO {recipe} (name, category, effort, weekend_only, notes, steps, url, is_mine)
-                         VALUES (?, ?, ?, ?, ?, ?, ?, ?)'
-                    )->execute([$name, $category, $effort, $weekendOnly,
+                        'INSERT INTO {recipe} (name, category, effort, weekend_only, servings, notes, steps, url, is_mine)
+                         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)'
+                    )->execute([$name, $category, $effort, $weekendOnly, $servings,
                                 $notes ?: null, $steps ?: null, $url ?: null, $isMine]);
                     $id = (int)$pdo->lastInsertId();
                     $notice = 'Recept toegevoegd.';
@@ -142,13 +188,23 @@ if (isset($_GET['edit'])) {
 
     if ($editing) {
         $stmt = $pdo->prepare(
-            'SELECT i.name FROM {recipe_ingredient} ri
+            'SELECT i.name, ri.amount, ri.unit FROM {recipe_ingredient} ri
                JOIN {ingredient} i ON i.id = ri.ingredient_id
               WHERE ri.recipe_id = ?
               ORDER BY i.name'
         );
         $stmt->execute([(int)$editing['id']]);
-        $editing['ingredients'] = implode(', ', $stmt->fetchAll(PDO::FETCH_COLUMN));
+
+        // Terug naar de vorm waarin je het intypt: "400 g gehakt".
+        $lines = [];
+        foreach ($stmt as $row) {
+            $amount = '';
+            if ($row['amount'] !== null) {
+                $amount = rtrim(rtrim(number_format((float)$row['amount'], 2, ',', ''), '0'), ',');
+            }
+            $lines[] = trim($amount . ' ' . (string)$row['unit'] . ' ' . $row['name']);
+        }
+        $editing['ingredients'] = implode(PHP_EOL, $lines);
     }
 }
 
@@ -230,11 +286,23 @@ $val = static fn(string $key, $fallback = '') => $editing[$key] ?? $fallback;
             </div>
 
             <div class="field">
-                <label for="f-ingredients">Ingrediënten</label>
-                <textarea id="f-ingredients" name="ingredients"
-                          placeholder="gehakt, macaroni, ui, kaas"><?= esc((string)$val('ingredients')) ?></textarea>
+                <label for="f-servings">Voor hoeveel personen</label>
+                <input type="number" id="f-servings" name="servings" min="1" max="20"
+                       value="<?= (int)$val('servings', 4) ?>">
                 <p class="field-hint">
-                    Komma's ertussen. Alleen de kenmerkende ingrediënten &mdash;
+                    Hoort bij de hoeveelheden hieronder. De app rekent zelf om naar
+                    het aantal personen dat je in het weekmenu kiest.
+                </p>
+            </div>
+
+            <div class="field">
+                <label for="f-ingredients">Ingrediënten</label>
+                <textarea id="f-ingredients" name="ingredients" rows="7"
+                          placeholder="400 g gehakt&#10;400 g macaroni&#10;2 ui&#10;100 g kaas"><?= esc((string)$val('ingredients')) ?></textarea>
+                <p class="field-hint">
+                    Eén per regel, hoeveelheid eerst: <code>400 g gehakt</code>,
+                    <code>2 teen knoflook</code>, <code>1 blik tomatenblokjes</code>.
+                    Zonder hoeveelheid mag ook. Alleen de kenmerkende ingrediënten &mdash;
                     die bepalen of dit gerecht omhoog schuift als je ze in huis hebt.
                 </p>
             </div>

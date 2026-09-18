@@ -26,19 +26,31 @@ $errors = [];
 try {
     $pdo = db();
 
-    /* --- 1. kolom voor de bereiding --- */
-    $stmt = $pdo->prepare(
+    /* --- 1. ontbrekende kolommen --- */
+    $hasColumn = $pdo->prepare(
         'SELECT COUNT(*) FROM information_schema.COLUMNS
           WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ? AND COLUMN_NAME = ?'
     );
-    $stmt->execute([DB_PREFIX . 'recipe', 'steps']);
 
-    if ((int)$stmt->fetchColumn() === 0) {
-        $pdo->exec('ALTER TABLE {recipe} ADD COLUMN steps TEXT NULL AFTER notes');
-        $log[] = 'Kolom <code>steps</code> toegevoegd aan de receptentabel.';
-    } else {
-        $log[] = 'Kolom <code>steps</code> bestond al.';
+    $columns = [
+        ['{recipe}',            'recipe',            'steps',    'ALTER TABLE {recipe} ADD COLUMN steps TEXT NULL AFTER notes'],
+        ['{recipe}',            'recipe',            'servings', 'ALTER TABLE {recipe} ADD COLUMN servings TINYINT UNSIGNED NOT NULL DEFAULT 4 AFTER weekend_only'],
+        ['{recipe_ingredient}', 'recipe_ingredient', 'amount',   'ALTER TABLE {recipe_ingredient} ADD COLUMN amount DECIMAL(8,2) NULL'],
+        ['{recipe_ingredient}', 'recipe_ingredient', 'unit',     'ALTER TABLE {recipe_ingredient} ADD COLUMN unit VARCHAR(20) NULL'],
+    ];
+
+    $addedColumns = [];
+    foreach ($columns as [$table, $bare, $column, $sql]) {
+        $hasColumn->execute([DB_PREFIX . $bare, $column]);
+        if ((int)$hasColumn->fetchColumn() === 0) {
+            $pdo->exec($sql);
+            $addedColumns[] = $column;
+        }
     }
+
+    $log[] = $addedColumns === []
+        ? 'Alle kolommen stonden al klaar.'
+        : 'Kolommen toegevoegd: <code>' . implode('</code>, <code>', $addedColumns) . '</code>.';
 
     /* --- 2. bestaande recepten ophalen --- */
     $existing = [];
@@ -53,17 +65,18 @@ try {
 
     $insIng  = $pdo->prepare('INSERT INTO {ingredient} (name, category, is_pantry_item) VALUES (?, ?, ?)');
     $insRec  = $pdo->prepare(
-        'INSERT INTO {recipe} (name, category, effort, weekend_only, notes, steps, url, is_mine)
-         VALUES (?, ?, ?, ?, ?, ?, ?, 0)'
+        'INSERT INTO {recipe} (name, category, effort, weekend_only, servings, notes, steps, url, is_mine)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0)'
     );
     $updRec  = $pdo->prepare(
         'UPDATE {recipe}
-            SET category = ?, effort = ?, weekend_only = ?, notes = ?, steps = ?
+            SET category = ?, effort = ?, weekend_only = ?, servings = ?, notes = ?, steps = ?
           WHERE id = ? AND is_mine = 0'
     );
     $delLink = $pdo->prepare('DELETE FROM {recipe_ingredient} WHERE recipe_id = ?');
     $insLink = $pdo->prepare(
-        'INSERT IGNORE INTO {recipe_ingredient} (recipe_id, ingredient_id, is_key) VALUES (?, ?, 1)'
+        'INSERT IGNORE INTO {recipe_ingredient} (recipe_id, ingredient_id, is_key, amount, unit)
+         VALUES (?, ?, 1, ?, ?)'
     );
 
     /* --- 3. ontbrekende voorraaditems --- */
@@ -98,26 +111,27 @@ try {
             }
             $recipeId = $existing[$r['name']]['id'];
             $updRec->execute([
-                $r['category'], $r['effort'], $r['weekend_only'],
+                $r['category'], $r['effort'], $r['weekend_only'], $r['servings'] ?? 4,
                 $r['notes'] ?? null, $r['steps'] ?? null, $recipeId,
             ]);
             $updated++;
         } else {
             $insRec->execute([
                 $r['name'], $r['category'], $r['effort'], $r['weekend_only'],
-                $r['notes'] ?? null, $r['steps'] ?? null, $r['url'] ?? null,
+                $r['servings'] ?? 4, $r['notes'] ?? null, $r['steps'] ?? null,
+                $r['url'] ?? null,
             ]);
             $recipeId = (int)$pdo->lastInsertId();
             $inserted++;
         }
 
         $delLink->execute([$recipeId]);
-        foreach ($r['ingredients'] as $ingName) {
+        foreach ($r['ingredients'] as [$ingName, $amount, $unit]) {
             if (!isset($ingIds[$ingName])) {
                 $insIng->execute([$ingName, 'rest', 0]);
                 $ingIds[$ingName] = (int)$pdo->lastInsertId();
             }
-            $insLink->execute([$recipeId, $ingIds[$ingName]]);
+            $insLink->execute([$recipeId, $ingIds[$ingName], $amount, $unit]);
         }
     }
 
