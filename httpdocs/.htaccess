@@ -5,6 +5,18 @@
     RewriteRule ^(.*)$ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
 </IfModule>
 
+# HSTS: vertel de browser dat hij het bij http niet eens hoeft te proberen.
+# Dat scheelt de omleiding en voorkomt dat een oude http-pagina uit de cache
+# nog als "niet beveiligd" verschijnt.
+#
+# max-age staat bewust op een dag. Werkt alles een tijdje goed, zet hem dan
+# op 31536000 (een jaar). Let op: zolang max-age loopt, weigert de browser
+# http voor dit domein. Raak je het certificaat kwijt, dan is de site in die
+# periode onbereikbaar in plaats van onbeveiligd.
+<IfModule mod_headers.c>
+    Header always set Strict-Transport-Security "max-age=86400" env=HTTPS
+</IfModule>
+
 # Geen mappen doorbladeren
 Options -Indexes
 
