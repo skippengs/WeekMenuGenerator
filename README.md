@@ -89,8 +89,22 @@ nog, dan kan iedereen die het adres kent hem openen.
 `https://jouwdomein.nl` toont het weekmenu. Recepten beheren gaat via
 `/admin.php`, met het adminwachtwoord dat je bij de installatie koos.
 
-Op je telefoon kun je de site aan je beginscherm toevoegen; dan opent hij
-als een app.
+### Op je telefoon zetten
+
+De site is een PWA, dus je kunt hem als app installeren. Dat werkt alleen
+via https.
+
+**Android (Chrome):** open de site, menu (drie puntjes) →
+*App installeren*. Verschijnt die optie niet, dan staat er *Toevoegen aan
+startscherm*; dat werkt ook.
+
+**iPhone (Safari):** open de site, deelknop (vierkantje met pijl) →
+*Zet op beginscherm*. Dit moet in Safari; Chrome op iOS kan het niet.
+
+Eenmaal geinstalleerd opent hij zonder adresbalk, met een eigen icoon.
+Een service worker bewaart de opmaak en het laatst bekeken menu, zodat de
+app ook opent als je in de winkel even geen bereik hebt. Een nieuw menu
+genereren vraagt uiteraard wel verbinding.
 
 ## Hoe de rotatie werkt
 

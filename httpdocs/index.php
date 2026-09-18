@@ -55,6 +55,13 @@ $recipeCount = (int)$pdo->query('SELECT COUNT(*) FROM {recipe} WHERE is_active =
 <meta name="theme-color" content="#1f6f4f">
 <link rel="stylesheet" href="assets/app.css">
 <link rel="manifest" href="manifest.json">
+
+<!-- iOS kijkt niet naar manifest.json, dus die heeft zijn eigen regels nodig. -->
+<link rel="apple-touch-icon" href="assets/icon-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Weekmenu">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<link rel="icon" type="image/png" sizes="192x192" href="assets/icon-192.png">
 </head>
 <body>
 
@@ -218,5 +225,16 @@ $recipeCount = (int)$pdo->query('SELECT COUNT(*) FROM {recipe} WHERE is_active =
     };
 </script>
 <script src="assets/app.js"></script>
+<script>
+    // Alleen op https (of localhost); daarbuiten weigert de browser hem toch.
+    if ('serviceWorker' in navigator) {
+        window.addEventListener('load', function () {
+            navigator.serviceWorker.register('sw.js').catch(function () {
+                // Geen service worker betekent alleen: niet offline te gebruiken.
+                // De app werkt verder gewoon.
+            });
+        });
+    }
+</script>
 </body>
 </html>
