@@ -5,14 +5,13 @@ define('WEEKMENU', true);
 /*
  * Boodschappenlijst als recept-pagina, zodat de Bring! app hem kan inlezen.
  *
- * Bring haalt deze pagina zelf op vanaf hun servers en leest de
- * schema.org-opmaak eruit. Daarom staat er geen login op: zonder
- * publieke toegang kan Bring er niet bij. Er staat ook niets gevoeligs
- * op, alleen wat er deze week gekocht moet worden.
+ * Bring haalt deze pagina zelf op vanaf hun servers. Daarom staat er geen
+ * login op: zonder publieke toegang kan Bring er niet bij. Er staat ook
+ * niets gevoeligs op, alleen wat er deze week gekocht moet worden.
  *
- * De opmaak volgt de voorbeelden uit de Bring! Import Developer Guide:
- * microdata met itemprop="ingredients". recipeIngredient staat er als
- * tweede naam bij, want dat is de moderne schrijfwijze.
+ * De gegevens staan als JSON-LD in de pagina. Microdata met
+ * itemprop="ingredients" stond in hun oudere voorbeelden, maar hun
+ * integratiecheck wees dat af; JSON-LD wordt wel herkend.
  */
 
 require __DIR__ . '/inc/config.php';
@@ -34,7 +33,8 @@ $shopping = shoppingList($pdo, $week['id']);
 
 /**
  * Hoeveelheid netjes opschrijven. Dezelfde afspraken als in de app:
- * grammen op tientallen, boven de duizend naar kilo's.
+ * grammen op tientallen, boven de duizend naar kilo's. Punt als
+ * decimaalteken, want daar kan een parser beter mee overweg.
  */
 function bringAmount(?float $value, ?string $unit): string
 {
@@ -74,6 +74,31 @@ foreach ($shopping as $items) {
 }
 
 $title = 'Boodschappen ' . weekLabel($current);
+
+// Absolute adressen: Bring leest deze pagina van buitenaf.
+$scheme = empty($_SERVER['HTTPS']) ? 'http' : 'https';
+$dir    = rtrim(dirname($_SERVER['PHP_SELF']), '/\\');
+$base   = $scheme . '://' . $_SERVER['HTTP_HOST'] . $dir;
+
+$recipe = [
+    '@context'           => 'https://schema.org',
+    '@type'              => 'Recipe',
+    'name'               => $title,
+    'description'        => 'De boodschappen voor het weekmenu van ' . weekLabel($current) . '.',
+    'image'              => $base . '/assets/icon-512.png',
+    'author'             => ['@type' => 'Organization', 'name' => 'Weekmenu'],
+    'recipeCategory'     => 'Boodschappen',
+    'recipeCuisine'      => 'Nederlands',
+    'recipeYield'        => '1 week',
+    'prepTime'           => 'PT0M',
+    'cookTime'           => 'PT0M',
+    'totalTime'          => 'PT0M',
+    'datePublished'      => $current,
+    'recipeIngredient'   => $lines,
+    'recipeInstructions' => [
+        ['@type' => 'HowToStep', 'text' => 'Zet de boodschappen in je lijst en ga naar de winkel.'],
+    ],
+];
 ?>
 <!DOCTYPE html>
 <html lang="nl">
@@ -84,26 +109,23 @@ $title = 'Boodschappen ' . weekLabel($current);
 <link rel="stylesheet" href="assets/app.css">
 <link rel="icon" type="image/png" sizes="32x32" href="assets/icon-32.png">
 <meta name="robots" content="noindex">
+<script type="application/ld+json">
+<?= json_encode($recipe, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_PRETTY_PRINT) ?>
+
+</script>
 </head>
 <body class="install">
-<main class="wrap" itemscope itemtype="http://schema.org/Recipe">
+<main class="wrap">
 
-    <h1 itemprop="name"><?= esc($title) ?></h1>
-
-    <p class="hint">
-        <span>Voor </span><span itemprop="yield">1</span> week &mdash;
-        deze pagina is bedoeld voor de Bring! app.
-    </p>
-
-    <meta itemprop="recipeCategory" content="Boodschappen">
-    <meta itemprop="author" content="Weekmenu">
+    <h1><?= esc($title) ?></h1>
+    <p class="hint">Deze pagina is bedoeld voor de Bring! app.</p>
 
     <?php if ($lines === []): ?>
         <p>Niets meer te halen; alles staat afgevinkt.</p>
     <?php else: ?>
         <ul class="detail-ingredients" style="flex-direction:column;align-items:flex-start">
             <?php foreach ($lines as $line): ?>
-                <li itemprop="recipeIngredient ingredients"><?= esc($line) ?></li>
+                <li><?= esc($line) ?></li>
             <?php endforeach; ?>
         </ul>
     <?php endif; ?>
