@@ -37,6 +37,7 @@ try {
         ['{recipe}',            'recipe',            'servings', 'ALTER TABLE {recipe} ADD COLUMN servings TINYINT UNSIGNED NOT NULL DEFAULT 4 AFTER weekend_only'],
         ['{recipe_ingredient}', 'recipe_ingredient', 'amount',   'ALTER TABLE {recipe_ingredient} ADD COLUMN amount DECIMAL(8,2) NULL'],
         ['{recipe_ingredient}', 'recipe_ingredient', 'unit',     'ALTER TABLE {recipe_ingredient} ADD COLUMN unit VARCHAR(20) NULL'],
+        ['{menu_entry}',        'menu_entry',        'servings', 'ALTER TABLE {menu_entry} ADD COLUMN servings TINYINT UNSIGNED NOT NULL DEFAULT 3'],
     ];
 
     $addedColumns = [];
@@ -51,6 +52,19 @@ try {
     $log[] = $addedColumns === []
         ? 'Alle kolommen stonden al klaar.'
         : 'Kolommen toegevoegd: <code>' . implode('</code>, <code>', $addedColumns) . '</code>.';
+
+    /* --- 1b. tabel voor instellingen --- */
+    $pdo->exec(
+        'CREATE TABLE IF NOT EXISTS {setting} (
+            name  VARCHAR(40)  NOT NULL PRIMARY KEY,
+            value VARCHAR(255) NOT NULL
+         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci'
+    );
+    $pdo->exec(
+        "INSERT INTO {setting} (name, value) VALUES ('default_servings', '3')
+         ON DUPLICATE KEY UPDATE value = value"
+    );
+    $log[] = 'Instellingen staan klaar, standaard 3 personen.';
 
     /* --- 2. bestaande recepten ophalen --- */
     $existing = [];
@@ -174,6 +188,9 @@ try {
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Weekmenu bijwerken</title>
 <link rel="stylesheet" href="assets/app.css">
+<link rel="icon" type="image/png" sizes="32x32" href="assets/icon-32.png">
+<link rel="icon" type="image/png" sizes="192x192" href="assets/icon-192.png">
+<link rel="apple-touch-icon" href="assets/icon-180.png">
 </head>
 <body class="install">
 <main class="wrap">

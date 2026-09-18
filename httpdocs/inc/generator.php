@@ -200,12 +200,16 @@ function generateWeek(PDO $pdo, string $weekStart, array $pantryIds): int
 
         $pdo->prepare('DELETE FROM {menu_entry} WHERE week_id = ?')->execute([$weekId]);
 
+        // Elke nieuwe week start op het standaard aantal personen; een
+        // gast van vorige week hoort niet mee te slepen.
+        $servings = defaultServings($pdo);
+
         $insert = $pdo->prepare(
-            'INSERT INTO {menu_entry} (week_id, day_index, recipe_id, is_junkfood)
-                  VALUES (?, ?, ?, ?)'
+            'INSERT INTO {menu_entry} (week_id, day_index, recipe_id, is_junkfood, servings)
+                  VALUES (?, ?, ?, ?, ?)'
         );
         foreach ($picks as $day => $recipeId) {
-            $insert->execute([$weekId, $day, $recipeId, $day === JUNK_DAY_INDEX ? 1 : 0]);
+            $insert->execute([$weekId, $day, $recipeId, $day === JUNK_DAY_INDEX ? 1 : 0, $servings]);
         }
 
         $pdo->commit();
@@ -293,7 +297,8 @@ function loadWeek(PDO $pdo, string $weekStart): ?array
     }
 
     $stmt = $pdo->prepare(
-        'SELECT me.day_index, me.is_junkfood, r.id, r.name, r.category, r.effort, r.notes, r.url
+        'SELECT me.day_index, me.is_junkfood, me.servings,
+                r.id, r.name, r.category, r.effort, r.notes, r.url
            FROM {menu_entry} me
       LEFT JOIN {recipe} r ON r.id = me.recipe_id
           WHERE me.week_id = ?
@@ -324,11 +329,12 @@ function shoppingList(PDO $pdo, int $weekId): array
     $stmt->execute([$weekId]);
     $pantryIds = array_map('intval', json_decode((string)$stmt->fetchColumn(), true) ?: []);
 
-    // Per persoon optellen, want recepten kunnen een andere basis hebben.
-    // De pagina vermenigvuldigt dat daarna met het aantal personen.
+    // Elke dag telt mee met zijn eigen aantal personen: de hoeveelheid uit
+    // het recept gedeeld door waar dat recept voor geschreven is, keer het
+    // aantal mensen dat die dag mee-eet.
     $stmt = $pdo->prepare(
         'SELECT i.id, i.name, i.category, ri.unit,
-                SUM(ri.amount / r.servings) AS per_person
+                SUM(ri.amount / r.servings * me.servings) AS total
            FROM {menu_entry} me
            JOIN {recipe} r ON r.id = me.recipe_id
            JOIN {recipe_ingredient} ri ON ri.recipe_id = me.recipe_id
@@ -345,9 +351,9 @@ function shoppingList(PDO $pdo, int $weekId): array
             continue;   // heb je al in huis
         }
         $list[$row['category']][] = [
-            'name'       => $row['name'],
-            'unit'       => $row['unit'],
-            'per_person' => $row['per_person'] === null ? null : (float)$row['per_person'],
+            'name'   => $row['name'],
+            'unit'   => $row['unit'],
+            'amount' => $row['total'] === null ? null : (float)$row['total'],
         ];
     }
 

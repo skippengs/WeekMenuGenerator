@@ -104,15 +104,24 @@
         });
     }
 
-    /* ---------- aantal personen ---------- */
+    /* ---------- aantal personen per dag ---------- */
 
-    var SERVINGS_KEY = 'weekmenu-personen';
-    var servings = 4;
+    /*
+     * Elke dag heeft zijn eigen aantal, opgeslagen bij de week. Komt er
+     * iemand eten op woensdag, dan zet je die dag op 4 en telt de
+     * boodschappenlijst dat vanzelf mee.
+     */
 
-    try {
-        var stored = parseInt(localStorage.getItem(SERVINGS_KEY), 10);
-        if (stored >= 1 && stored <= 20) { servings = stored; }
-    } catch (err) { /* geen opslag, blijf op 4 */ }
+    var openDay = null;   // welke dag staat er in het receptvenster
+
+    function dayEl(day) {
+        return document.querySelector('.day[data-day="' + day + '"]');
+    }
+
+    function getDayServings(day) {
+        var el = dayEl(day);
+        return el ? parseInt(el.getAttribute('data-day-servings'), 10) || 3 : 3;
+    }
 
     /*
      * Afronden op iets wat je in een keuken kunt gebruiken. 266,67 gram
@@ -144,39 +153,87 @@
         var rounded = roundAmount(value, unit);
         if (rounded <= 0) { return ''; }
 
-        var text = String(rounded).replace('.', ',');   // Nederlandse komma
-        return unit ? text + ' ' + unit + ' ' : text + ' ';
+        return String(rounded).replace('.', ',') + (unit ? ' ' + unit + ' ' : ' ');
     }
 
-    /** Zet alle hoeveelheden op de pagina om naar het huidige aantal personen. */
-    function renderServings() {
-        Array.prototype.forEach.call(
-            document.querySelectorAll('[data-servings-value]'),
-            function (el) { el.textContent = servings; }
-        );
-
-        // Boodschappenlijst: opgeslagen per persoon, dus keer het aantal.
+    /** Boodschappenlijst: de server rekent al, wij maken er tekst van. */
+    function renderShopping() {
         Array.prototype.forEach.call(
             document.querySelectorAll('.shop-amount'),
             function (el) {
-                var per = parseFloat(el.getAttribute('data-per-person'));
-                if (isNaN(per)) { el.textContent = ''; return; }
-                el.textContent = formatAmount(per * servings, el.getAttribute('data-unit'));
+                var amount = parseFloat(el.getAttribute('data-amount'));
+                el.textContent = isNaN(amount)
+                    ? ''
+                    : formatAmount(amount, el.getAttribute('data-unit'));
             }
         );
+    }
 
-        // Receptvenster: opgeslagen voor de basis van dat recept.
+    /** Hoeveelheden in het receptvenster omrekenen naar de dag die openstaat. */
+    function renderRecipeAmounts() {
         var list = document.getElementById('recipeIngredients');
-        if (list && list.dataset.base) {
-            var factor = servings / parseInt(list.dataset.base, 10);
-            Array.prototype.forEach.call(list.querySelectorAll('li'), function (li) {
-                var amountEl = li.querySelector('.detail-amount');
-                if (!amountEl) { return; }
-                var base = parseFloat(amountEl.getAttribute('data-amount'));
-                if (isNaN(base)) { amountEl.textContent = ''; return; }
-                amountEl.textContent = formatAmount(base * factor, amountEl.getAttribute('data-unit'));
-            });
+        if (!list || !list.dataset.base) { return; }
+
+        var people = openDay === null ? 3 : getDayServings(openDay);
+        var factor = people / parseInt(list.dataset.base, 10);
+
+        var label = document.querySelector('#recipeServings [data-servings-value]');
+        if (label) { label.textContent = people; }
+
+        Array.prototype.forEach.call(list.querySelectorAll('.detail-amount'), function (el) {
+            var base = parseFloat(el.getAttribute('data-amount'));
+            el.textContent = isNaN(base)
+                ? ''
+                : formatAmount(base * factor, el.getAttribute('data-unit'));
+        });
+    }
+
+    /** Zet een dag op een nieuw aantal en bewaar dat. */
+    function changeServings(day, delta) {
+        var next = getDayServings(day) + delta;
+        if (next < 1 || next > 20) { return; }
+
+        var el = dayEl(day);
+        if (el) {
+            el.setAttribute('data-day-servings', next);
+            var label = el.querySelector('[data-servings-value]');
+            if (label) { label.textContent = next; }
         }
+
+        if (openDay === day) { renderRecipeAmounts(); }
+
+        postJson('api/servings.php', {
+            csrf: cfg.csrf,
+            week_id: cfg.weekId,
+            day_index: day,
+            servings: next
+        }).then(function (data) {
+            // De server stuurt de herberekende lijst mee.
+            applyShopping(data.shopping);
+        }).catch(function (err) {
+            toast(err.message, true);
+        });
+    }
+
+    /** Nieuwe totalen in de bestaande boodschappenlijst zetten. */
+    function applyShopping(shopping) {
+        if (!shopping) { return; }
+
+        var byName = {};
+        Object.keys(shopping).forEach(function (group) {
+            shopping[group].forEach(function (item) {
+                byName[item.name] = item.amount;
+            });
+        });
+
+        Array.prototype.forEach.call(document.querySelectorAll('.shop-amount'), function (el) {
+            var name = el.getAttribute('data-name');
+            if (Object.prototype.hasOwnProperty.call(byName, name)) {
+                el.setAttribute('data-amount', byName[name] === null ? '' : byName[name]);
+            }
+        });
+
+        renderShopping();
     }
 
     document.addEventListener('click', function (e) {
@@ -185,12 +242,14 @@
 
         e.preventDefault();
 
-        var next = servings + parseInt(btn.getAttribute('data-servings'), 10);
-        if (next < 1 || next > 20) { return; }
+        var delta = parseInt(btn.getAttribute('data-servings'), 10);
+        var control = btn.closest('[data-servings-control]');
 
-        servings = next;
-        try { localStorage.setItem(SERVINGS_KEY, String(servings)); } catch (err) { /* niet erg */ }
-        renderServings();
+        if (control) {
+            changeServings(parseInt(control.getAttribute('data-servings-control'), 10), delta);
+        } else if (btn.closest('#recipeServings') && openDay !== null) {
+            changeServings(openDay, delta);
+        }
     });
 
     /* ---------- recept bekijken ---------- */
@@ -206,7 +265,8 @@
         });
     }
 
-    function openRecipe(id) {
+    function openRecipe(id, day) {
+        openDay = day;
         if (!recipeModal) { return; }
 
         document.getElementById('recipeTitle').textContent = 'Bezig met laden...';
@@ -217,6 +277,9 @@
         document.getElementById('recipeNotes').textContent = '';
         document.getElementById('recipeHint').textContent = '';
         document.getElementById('recipeLinkWrap').hidden = true;
+
+        var label = document.querySelector('#recipeServings [data-servings-value]');
+        if (label) { label.textContent = day === null ? 3 : getDayServings(day); }
 
         recipeModal.hidden = false;
         document.body.classList.add('modal-open');
@@ -253,8 +316,8 @@
 
                 fillList(document.getElementById('recipeSteps'), data.steps, 'li');
 
-                // Hoeveelheden meteen naar het ingestelde aantal personen.
-                renderServings();
+                // Hoeveelheden meteen naar het aantal personen van die dag.
+                renderRecipeAmounts();
 
                 if (!data.steps.length) {
                     document.getElementById('recipeHint').textContent =
@@ -284,7 +347,11 @@
         var trigger = e.target.closest('[data-recipe]');
         if (trigger) {
             e.preventDefault();
-            openRecipe(trigger.getAttribute('data-recipe'));
+            var article = trigger.closest('.day');
+            openRecipe(
+                trigger.getAttribute('data-recipe'),
+                article ? parseInt(article.getAttribute('data-day'), 10) : null
+            );
         }
         if (e.target.closest('[data-close-recipe]')) {
             e.preventDefault();
@@ -348,7 +415,7 @@
         el.classList.toggle('is-empty', !value);
     }
 
-    renderServings();
+    renderShopping();
 
     /* ---------- boodschappenlijst onthouden per week ---------- */
 

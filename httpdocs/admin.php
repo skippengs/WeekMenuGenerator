@@ -6,6 +6,7 @@ require __DIR__ . '/inc/config.php';
 require __DIR__ . '/inc/db.php';
 require __DIR__ . '/inc/helpers.php';
 require __DIR__ . '/inc/auth.php';
+require __DIR__ . '/inc/settings.php';
 
 startSession();
 requireAdmin();
@@ -160,6 +161,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     ->execute([(int)$_POST['id']]);
                 $notice = 'Aan- of uitgezet.';
 
+            } elseif ($action === 'save_settings') {
+                $value = max(1, min(20, (int)($_POST['default_servings'] ?? 3)));
+                setSetting($pdo, SETTING_DEFAULT_SERVINGS, (string)$value);
+                $notice = 'Standaard aantal personen staat nu op ' . $value . '.';
+
             } elseif ($action === 'save_pantry') {
                 $checked = array_map('intval', (array)($_POST['pantry'] ?? []));
                 $pdo->exec('UPDATE {ingredient} SET is_pantry_item = 0');
@@ -227,6 +233,9 @@ $val = static fn(string $key, $fallback = '') => $editing[$key] ?? $fallback;
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Recepten beheren</title>
 <link rel="stylesheet" href="assets/app.css">
+<link rel="icon" type="image/png" sizes="32x32" href="assets/icon-32.png">
+<link rel="icon" type="image/png" sizes="192x192" href="assets/icon-192.png">
+<link rel="apple-touch-icon" href="assets/icon-180.png">
 </head>
 <body>
 
@@ -399,6 +408,26 @@ $val = static fn(string $key, $fallback = '') => $editing[$key] ?? $fallback;
             </table>
         </div>
     </div>
+
+    <!-- instellingen --------------------------------------------------- -->
+    <form class="card" method="post" action="admin.php" style="margin-bottom:24px">
+        <h2>Instellingen</h2>
+
+        <input type="hidden" name="csrf" value="<?= esc(csrfToken()) ?>">
+        <input type="hidden" name="action" value="save_settings">
+
+        <div class="field">
+            <label for="f-default-servings">Standaard aantal personen</label>
+            <input type="number" id="f-default-servings" name="default_servings"
+                   min="1" max="20" value="<?= (int)defaultServings($pdo) ?>">
+            <p class="field-hint">
+                Hiermee begint elke dag in een nieuw weekmenu. Eet er een keer
+                iemand mee, dan pas je die dag los aan in het weekmenu zelf.
+            </p>
+        </div>
+
+        <button class="btn btn-primary" type="submit">Opslaan</button>
+    </form>
 
     <!-- voorraadlijst ------------------------------------------------ -->
     <form class="card" method="post" action="admin.php" style="margin-bottom:40px">

@@ -182,6 +182,12 @@ if (!$alreadyInstalled && $_SERVER['REQUEST_METHOD'] === 'POST') {
                     CONSTRAINT `{$p}fk_ri_ingredient` FOREIGN KEY (ingredient_id) REFERENCES `{$p}ingredient`(id) ON DELETE CASCADE
                 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci",
 
+            $p . 'setting' => "
+                CREATE TABLE IF NOT EXISTS `{$p}setting` (
+                    name  VARCHAR(40)  NOT NULL PRIMARY KEY,
+                    value VARCHAR(255) NOT NULL
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci",
+
             $p . 'menu_week' => "
                 CREATE TABLE IF NOT EXISTS `{$p}menu_week` (
                     id          INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
@@ -198,6 +204,7 @@ if (!$alreadyInstalled && $_SERVER['REQUEST_METHOD'] === 'POST') {
                     day_index   TINYINT UNSIGNED NOT NULL,
                     recipe_id   INT UNSIGNED NULL,
                     is_junkfood TINYINT(1)   NOT NULL DEFAULT 0,
+                    servings    TINYINT UNSIGNED NOT NULL DEFAULT 3,
                     UNIQUE KEY uniq_week_day (week_id, day_index),
                     KEY idx_recipe (recipe_id),
                     CONSTRAINT `{$p}fk_me_week`   FOREIGN KEY (week_id)   REFERENCES `{$p}menu_week`(id) ON DELETE CASCADE,
@@ -269,6 +276,11 @@ if (!$alreadyInstalled && $_SERVER['REQUEST_METHOD'] === 'POST') {
                     }
                 }
 
+                $pdo->prepare(
+                    "INSERT INTO `{$p}setting` (name, value) VALUES ('default_servings', '3')
+                     ON DUPLICATE KEY UPDATE value = value"
+                )->execute();
+
                 $pdo->commit();
                 $log[] = 'Toegevoegd: ' . count($recipes) . ' recepten en '
                        . count($ingIds) . ' ingredienten.';
@@ -295,6 +307,9 @@ if (empty($_SESSION['csrf'])) {
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Weekmenu installeren</title>
 <link rel="stylesheet" href="assets/app.css">
+<link rel="icon" type="image/png" sizes="32x32" href="assets/icon-32.png">
+<link rel="icon" type="image/png" sizes="192x192" href="assets/icon-192.png">
+<link rel="apple-touch-icon" href="assets/icon-180.png">
 </head>
 <body class="install">
 <main class="wrap">

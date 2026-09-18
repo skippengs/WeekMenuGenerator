@@ -6,6 +6,7 @@ require __DIR__ . '/inc/config.php';
 require __DIR__ . '/inc/db.php';
 require __DIR__ . '/inc/helpers.php';
 require __DIR__ . '/inc/auth.php';
+require __DIR__ . '/inc/settings.php';
 require __DIR__ . '/inc/generator.php';
 
 startSession();
@@ -56,12 +57,12 @@ $recipeCount = (int)$pdo->query('SELECT COUNT(*) FROM {recipe} WHERE is_active =
 <link rel="stylesheet" href="assets/app.css">
 <link rel="manifest" href="manifest.json">
 
-<!-- iOS kijkt niet naar manifest.json, dus die heeft zijn eigen regels nodig. -->
-<link rel="apple-touch-icon" href="assets/icon-192.png">
+<link rel="icon" type="image/png" sizes="32x32" href="assets/icon-32.png">
+<link rel="icon" type="image/png" sizes="192x192" href="assets/icon-192.png">
+<link rel="apple-touch-icon" href="assets/icon-180.png">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Weekmenu">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<link rel="icon" type="image/png" sizes="192x192" href="assets/icon-192.png">
 </head>
 <body>
 
@@ -107,7 +108,9 @@ $recipeCount = (int)$pdo->query('SELECT COUNT(*) FROM {recipe} WHERE is_active =
                 $isJunk     = $i === JUNK_DAY_INDEX;
                 $hasRecipe  = $entry && $entry['id'] !== null;
                 ?>
-                <article class="day <?= $isJunk ? 'day-junk' : '' ?>" data-day="<?= $i ?>">
+                <?php $dayServings = (int)($entry['servings'] ?? 3); ?>
+                <article class="day <?= $isJunk ? 'day-junk' : '' ?>" data-day="<?= $i ?>"
+                         data-day-servings="<?= $dayServings ?>">
                     <div class="day-head">
                         <span class="day-name"><?= esc($dayName) ?></span>
                         <span class="day-date"><?= esc(dayDate($current, $i)) ?></span>
@@ -141,9 +144,16 @@ $recipeCount = (int)$pdo->query('SELECT COUNT(*) FROM {recipe} WHERE is_active =
                     </div>
 
                     <?php if (!$isJunk): ?>
-                        <button class="btn btn-reroll" data-reroll="<?= $i ?>" title="Ander gerecht voor deze dag">
-                            Ander gerecht
-                        </button>
+                        <div class="day-actions">
+                            <div class="servings servings-day" data-servings-control="<?= $i ?>">
+                                <button class="servings-btn" data-servings="-1" aria-label="Minder personen">&minus;</button>
+                                <span class="servings-value"><span data-servings-value><?= $dayServings ?></span>p</span>
+                                <button class="servings-btn" data-servings="1" aria-label="Meer personen">+</button>
+                            </div>
+                            <button class="btn btn-reroll" data-reroll="<?= $i ?>" title="Ander gerecht voor deze dag">
+                                Ander gerecht
+                            </button>
+                        </div>
                     <?php endif; ?>
                 </article>
             <?php endforeach; ?>
@@ -155,17 +165,11 @@ $recipeCount = (int)$pdo->query('SELECT COUNT(*) FROM {recipe} WHERE is_active =
 
         <?php if ($shopping !== []): ?>
             <section class="shopping">
-                <div class="shopping-head">
-                    <div>
-                        <h2>Boodschappenlijst</h2>
-                        <p class="hint">Alles wat de recepten van deze week nodig hebben, minus wat je al in huis had.</p>
-                    </div>
-                    <div class="servings" data-servings-control>
-                        <button class="servings-btn" data-servings="-1" aria-label="Minder personen">&minus;</button>
-                        <span class="servings-value"><span data-servings-value>4</span> pers.</span>
-                        <button class="servings-btn" data-servings="1" aria-label="Meer personen">+</button>
-                    </div>
-                </div>
+                <h2>Boodschappenlijst</h2>
+                <p class="hint">
+                    Opgeteld over de hele week, met het aantal personen dat je per dag
+                    hebt ingesteld. Wat je al in huis had staat er niet bij.
+                </p>
                 <div class="shopping-groups">
                     <?php foreach ($shopping as $group => $items): ?>
                         <div class="shopping-group">
@@ -177,7 +181,8 @@ $recipeCount = (int)$pdo->query('SELECT COUNT(*) FROM {recipe} WHERE is_active =
                                             <input type="checkbox">
                                             <span>
                                                 <span class="shop-amount"
-                                                      data-per-person="<?= $item['per_person'] !== null ? esc((string)round($item['per_person'], 4)) : '' ?>"
+                                                      data-name="<?= esc($item['name']) ?>"
+                                                      data-amount="<?= $item['amount'] !== null ? esc((string)round($item['amount'], 4)) : '' ?>"
                                                       data-unit="<?= esc((string)$item['unit']) ?>"></span><?= esc($item['name']) ?>
                                             </span>
                                         </label>
@@ -253,9 +258,9 @@ $recipeCount = (int)$pdo->query('SELECT COUNT(*) FROM {recipe} WHERE is_active =
 
             <div class="detail-servings">
                 <h3 class="detail-head">Nodig</h3>
-                <div class="servings" data-servings-control>
+                <div class="servings" id="recipeServings">
                     <button class="servings-btn" data-servings="-1" aria-label="Minder personen">&minus;</button>
-                    <span class="servings-value"><span data-servings-value>4</span> pers.</span>
+                    <span class="servings-value"><span data-servings-value>3</span> pers.</span>
                     <button class="servings-btn" data-servings="1" aria-label="Meer personen">+</button>
                 </div>
             </div>

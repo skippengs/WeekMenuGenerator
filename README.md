@@ -11,7 +11,7 @@ wordt overgeslagen. Draait op gewone PHP-webhosting met MySQL.
 - Losse dag opnieuw gooien zonder de rest van de week kwijt te raken
 - Boodschappenlijst van wat je nog moet halen
 - Klik op een gerecht voor de ingredienten, hoeveelheden en een korte bereiding
-- Knop voor het aantal personen; alle hoeveelheden rekenen mee
+- Aantal personen per dag; de boodschappenlijst telt dat vanzelf op
 - 47 Nederlandse recepten om mee te beginnen, met bereiding
 
 ## Installeren op mijndomein.nl
@@ -159,11 +159,19 @@ Meegeleverde recepten die uit de lijst zijn gehaald worden op non-actief
 gezet, niet verwijderd, zodat je weekgeschiedenis heel blijft. Via
 Recepten beheren kun je ze weer aanzetten.
 
-### Hoeveelheden
+### Hoeveelheden en aantal personen
 
-Recepten zijn ingevuld voor vier personen. Met de knop boven de
-ingredienten of boven de boodschappenlijst zet je dat hoger of lager; de
-app rekent alles om en onthoudt je keuze op dat apparaat.
+Elke dag in het weekmenu heeft zijn eigen aantal personen. Standaard drie;
+dat stel je in bij Recepten beheren onder Instellingen. Eet er zondag
+iemand mee, dan zet je alleen die dag op vier met de knop op de dagregel
+of in het receptvenster. De boodschappenlijst telt de hele week op met het
+aantal van elke dag erbij gerekend.
+
+Een nieuw weekmenu begint altijd weer op de standaard, zodat een gast van
+vorige week niet blijft hangen.
+
+De recepten zelf zijn geschreven voor vier personen; dat staat per recept
+en de app rekent het om.
 
 Bij het toevoegen van een eigen recept zet je de hoeveelheid voorop:
 `400 g gehakt`, `2 teen knoflook`, `1 blik tomatenblokjes`. Een regel

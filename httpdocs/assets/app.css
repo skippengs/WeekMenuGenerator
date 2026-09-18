@@ -817,3 +817,43 @@ code {
 @media (max-width: 700px) {
     .shopping-head { flex-direction: column; }
 }
+
+/* ---------- aantal personen op de dagregel ---------- */
+
+.day-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.servings-day {
+    padding: 2px;
+    gap: 0;
+}
+
+.servings-day .servings-btn {
+    width: 24px;
+    height: 24px;
+    font-size: 14px;
+}
+
+.servings-day .servings-value {
+    min-width: 26px;
+    font-size: 12px;
+}
+
+/* De teller is niet het hoofdgerecht: pas opvallen als je er bent. */
+.servings-day { opacity: .65; transition: opacity .12s; }
+.day:hover .servings-day,
+.servings-day:focus-within { opacity: 1; }
+
+@media (max-width: 700px) {
+    .day-actions {
+        grid-column: 2;
+        flex-direction: column;
+        align-items: flex-end;
+        gap: 6px;
+    }
+
+    .servings-day { opacity: 1; }
+}
