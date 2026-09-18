@@ -38,6 +38,10 @@ if ($servings < 1 || $servings > 20) {
 try {
     $pdo = db();
 
+    if (weekIsLocked($pdo, $weekId)) {
+        jsonOut(['error' => 'Deze week is naar Bring gestuurd en staat op slot. Ontgrendel hem eerst.'], 409);
+    }
+
     $stmt = $pdo->prepare(
         'UPDATE {menu_entry} SET servings = ? WHERE week_id = ? AND day_index = ?'
     );

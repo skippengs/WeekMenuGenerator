@@ -198,6 +198,7 @@ if (!$alreadyInstalled && $_SERVER['REQUEST_METHOD'] === 'POST') {
                     id          INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
                     week_start  DATE     NOT NULL,
                     pantry_json TEXT     NULL,
+                    locked_at   DATETIME NULL,
                     created_at  DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
                     UNIQUE KEY uniq_week (week_start)
                 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci",

@@ -43,6 +43,10 @@ if (isset($input['pantry']) && is_array($input['pantry'])) {
 try {
     $pdo = db();
 
+    if (weekIsLockedByDate($pdo, $week)) {
+        jsonOut(['error' => 'Deze week is naar Bring gestuurd en staat op slot. Ontgrendel hem eerst.'], 409);
+    }
+
     if ((int)$pdo->query('SELECT COUNT(*) FROM {recipe} WHERE is_active = 1')->fetchColumn() === 0) {
         jsonOut(['error' => 'Er staan nog geen recepten in de database.'], 422);
     }

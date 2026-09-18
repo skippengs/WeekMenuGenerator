@@ -162,11 +162,27 @@ dag opnieuw gooien, het aantal personen aanpassen en recepten beheren.
 Zonder login zijn die knoppen niet alleen verborgen, de api-bestanden
 weigeren het ook (401), dus rechtstreeks aanroepen helpt niemand.
 
-## Boodschappenlijst naar Bring!
+## De boodschappenlijst
 
-Ingelogd staat er boven de boodschappenlijst een knop **Naar Bring!**.
-Die opent de Bring! app met alles wat je nog moet halen erin; afgevinkte
-dingen blijven weg.
+Alles wat de recepten van de week nodig hebben staat erop, ook wat je bij
+het genereren aanvinkte als "heb ik al". Dat staat doorgestreept, met de
+hoeveelheid erbij. Zo zie je wat je deze week nodig hebt en kun je het
+weer aanzetten als de pot toch bijna leeg is.
+
+Wat doorgestreept staat gaat niet mee naar Bring.
+
+### Naar Bring!
+
+Ingelogd staat er boven de lijst een knop **Naar Bring!**. Die opent de
+Bring! app met alles wat je nog moet halen.
+
+**De week gaat daarna op slot.** Het menu ligt dan vast: geen ander
+gerecht, geen ander aantal personen, niet opnieuw genereren. Anders klopt
+wat er in Bring staat niet meer met wat je thuis kookt. Afstrepen blijft
+gewoon werken, want daar ben je in de winkel mee bezig.
+
+Toch nog iets wijzigen? Klik op **Ontgrendelen** in de balk bovenaan. Wat
+al in Bring staat verandert daar niet meer door.
 
 Het werkt via `bring.php`, een pagina die de lijst als schema.org-recept
 toont. Bring haalt die pagina zelf op vanaf hun servers, dus er staat

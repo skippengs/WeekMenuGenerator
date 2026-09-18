@@ -215,6 +215,21 @@ function generateWeek(PDO $pdo, string $weekStart, array $pantryIds): int
             $insert->execute([$weekId, $day, $recipeId, $day === JUNK_DAY_INDEX ? 1 : 0, $servings]);
         }
 
+        // Wat je zei in huis te hebben komt afgestreept op de lijst. Zo zie
+        // je wel hoeveel je deze week nodig hebt, en kun je het weer
+        // aanzetten als de pot toch bijna leeg blijkt.
+        if ($pantryIds !== []) {
+            $in = implode(',', array_fill(0, count($pantryIds), '?'));
+            $pdo->prepare(
+                "INSERT IGNORE INTO {shopping_check} (week_id, item)
+                 SELECT DISTINCT ?, i.name
+                   FROM {menu_entry} me
+                   JOIN {recipe_ingredient} ri ON ri.recipe_id = me.recipe_id
+                   JOIN {ingredient} i ON i.id = ri.ingredient_id
+                  WHERE me.week_id = ? AND i.id IN ($in)"
+            )->execute(array_merge([$weekId, $weekId], $pantryIds));
+        }
+
         $pdo->commit();
     } catch (Throwable $e) {
         $pdo->rollBack();
@@ -289,10 +304,31 @@ function rerollDay(PDO $pdo, int $weekId, int $dayIndex): ?array
     return $pick;
 }
 
+/**
+ * Een week gaat op slot zodra hij naar Bring is gestuurd. Anders klopt
+ * je boodschappenlijst niet meer met wat er in de app staat.
+ */
+function weekIsLocked(PDO $pdo, int $weekId): bool
+{
+    $stmt = $pdo->prepare('SELECT locked_at FROM {menu_week} WHERE id = ?');
+    $stmt->execute([$weekId]);
+
+    return $stmt->fetchColumn() !== null;
+}
+
+function weekIsLockedByDate(PDO $pdo, string $weekStart): bool
+{
+    $stmt = $pdo->prepare('SELECT locked_at FROM {menu_week} WHERE week_start = ?');
+    $stmt->execute([$weekStart]);
+    $value = $stmt->fetchColumn();
+
+    return $value !== false && $value !== null;
+}
+
 /** Haalt een opgeslagen week op als array van 7 dagen. */
 function loadWeek(PDO $pdo, string $weekStart): ?array
 {
-    $stmt = $pdo->prepare('SELECT id, week_start, pantry_json FROM {menu_week} WHERE week_start = ?');
+    $stmt = $pdo->prepare('SELECT id, week_start, pantry_json, locked_at FROM {menu_week} WHERE week_start = ?');
     $stmt->execute([$weekStart]);
     $week = $stmt->fetch();
     if (!$week) {
@@ -318,6 +354,7 @@ function loadWeek(PDO $pdo, string $weekStart): ?array
         'id'         => (int)$week['id'],
         'week_start' => $week['week_start'],
         'pantry'     => json_decode((string)$week['pantry_json'], true) ?: [],
+        'locked_at'  => $week['locked_at'],
         'days'       => $days,
     ];
 }
@@ -328,10 +365,6 @@ function loadWeek(PDO $pdo, string $weekStart): ?array
  */
 function shoppingList(PDO $pdo, int $weekId): array
 {
-    $stmt = $pdo->prepare('SELECT pantry_json FROM {menu_week} WHERE id = ?');
-    $stmt->execute([$weekId]);
-    $pantryIds = array_map('intval', json_decode((string)$stmt->fetchColumn(), true) ?: []);
-
     // Elke dag telt mee met zijn eigen aantal personen: de hoeveelheid uit
     // het recept gedeeld door waar dat recept voor geschreven is, keer het
     // aantal mensen dat die dag mee-eet.
@@ -358,9 +391,6 @@ function shoppingList(PDO $pdo, int $weekId): array
 
     $list = [];
     foreach ($stmt as $row) {
-        if (in_array((int)$row['id'], $pantryIds, true)) {
-            continue;   // heb je al in huis
-        }
         $list[$row['category']][] = [
             'name'    => $row['name'],
             'unit'    => $row['unit'],

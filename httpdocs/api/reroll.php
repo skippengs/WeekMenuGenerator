@@ -35,7 +35,13 @@ if ($dayIndex === JUNK_DAY_INDEX) {
 }
 
 try {
-    $pick = rerollDay(db(), $weekId, $dayIndex);
+    $pdo = db();
+
+    if (weekIsLocked($pdo, $weekId)) {
+        jsonOut(['error' => 'Deze week is naar Bring gestuurd en staat op slot. Ontgrendel hem eerst.'], 409);
+    }
+
+    $pick = rerollDay($pdo, $weekId, $dayIndex);
 } catch (Throwable $e) {
     jsonOut(['error' => 'Opnieuw kiezen mislukt: ' . $e->getMessage()], 500);
 }

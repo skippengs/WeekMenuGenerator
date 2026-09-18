@@ -19,6 +19,11 @@ $current  = weekStart($_GET['week'] ?? null);
 $week     = loadWeek($pdo, $current);
 $shopping = $week ? shoppingList($pdo, $week['id']) : [];
 
+// Een week die naar Bring is gestuurd staat op slot: het menu ligt vast,
+// maar afstrepen tijdens het boodschappen doen moet gewoon kunnen.
+$isLocked    = $week !== null && $week['locked_at'] !== null;
+$mayEditMenu = $mayEdit && !$isLocked;
+
 $prevWeek = (new DateTimeImmutable($current))->modify('-7 days')->format('Y-m-d');
 $nextWeek = (new DateTimeImmutable($current))->modify('+7 days')->format('Y-m-d');
 
@@ -94,11 +99,24 @@ $recipeCount = (int)$pdo->query('SELECT COUNT(*) FROM {recipe} WHERE is_active =
         <a class="btn btn-ghost" href="?week=<?= esc($nextWeek) ?>" title="Volgende week">&rarr;</a>
     </div>
 
+    <?php if ($isLocked): ?>
+        <div class="alert alert-locked">
+            <span>
+                <strong>Deze week staat op slot.</strong>
+                De lijst is op <?= esc(date('j M, H:i', strtotime((string)$week['locked_at']))) ?>
+                naar Bring gestuurd, dus het menu ligt vast. Afstrepen kan gewoon.
+            </span>
+            <?php if ($mayEdit): ?>
+                <button class="btn btn-ghost" data-unlock>Ontgrendelen</button>
+            <?php endif; ?>
+        </div>
+    <?php endif; ?>
+
     <?php if ($week === null): ?>
 
         <section class="empty">
             <p class="empty-text">Voor deze week staat nog geen menu klaar.</p>
-            <?php if ($mayEdit): ?>
+            <?php if ($mayEditMenu): ?>
                 <button class="btn btn-primary btn-big" data-open-pantry>Genereer weekmenu</button>
             <?php else: ?>
                 <p class="hint"><a href="login.php">Log in</a> om een menu te maken.</p>
@@ -157,7 +175,7 @@ $recipeCount = (int)$pdo->query('SELECT COUNT(*) FROM {recipe} WHERE is_active =
 
                     <?php if (!$isJunk): ?>
                         <div class="day-actions">
-                            <?php if ($mayEdit): ?>
+                            <?php if ($mayEditMenu): ?>
                                 <div class="servings servings-day" data-servings-control="<?= $i ?>">
                                     <button class="servings-btn" data-servings="-1" aria-label="Minder personen">&minus;</button>
                                     <span class="servings-value"><span data-servings-value><?= $dayServings ?></span>p</span>
@@ -175,7 +193,7 @@ $recipeCount = (int)$pdo->query('SELECT COUNT(*) FROM {recipe} WHERE is_active =
             <?php endforeach; ?>
         </section>
 
-        <?php if ($mayEdit): ?>
+        <?php if ($mayEditMenu): ?>
             <div class="actions">
                 <button class="btn btn-primary" data-open-pantry>Genereer opnieuw</button>
             </div>
@@ -188,25 +206,16 @@ $recipeCount = (int)$pdo->query('SELECT COUNT(*) FROM {recipe} WHERE is_active =
                         <h2>Boodschappenlijst</h2>
                         <p class="hint">
                             Opgeteld over de hele week, met het aantal personen dat je per dag
-                            hebt ingesteld. Wat je al in huis had staat er niet bij.
+                            hebt ingesteld. Wat je al in huis zei te hebben staat er
+                            doorgestreept bij; zet het aan als het toch op is.
+                            Naar Bring gaat alleen wat niet is afgestreept.
                         </p>
                     </div>
                     <?php if ($mayEdit): ?>
-                        <?php
-                        // Bring haalt de lijst zelf op, dus dit moet een adres zijn
-                        // dat van buitenaf te bereiken is.
-                        $scheme  = empty($_SERVER['HTTPS']) ? 'http' : 'https';
-                        $dir     = rtrim(dirname($_SERVER['PHP_SELF']), '/\\');
-                        $bringUrl = $scheme . '://' . $_SERVER['HTTP_HOST'] . $dir
-                                  . '/bring.php?week=' . urlencode($current);
-                        $deeplink = 'https://api.getbring.com/rest/bringrecipes/deeplink'
-                                  . '?url=' . urlencode($bringUrl)
-                                  . '&source=web&baseQuantity=1&requestedQuantity=1';
-                        ?>
-                        <a class="btn btn-bring" href="<?= esc($deeplink) ?>"
+                        <a class="btn btn-bring" href="bring-export.php?week=<?= esc($current) ?>"
                            target="_blank" rel="noopener"
-                           title="Zet de lijst in de Bring! app">
-                            Naar Bring!
+                           title="Zet de lijst in de Bring! app; de week gaat daarna op slot">
+                            <?= $isLocked ? 'Opnieuw naar Bring!' : 'Naar Bring!' ?>
                         </a>
                     <?php endif; ?>
                 </div>
@@ -243,7 +252,7 @@ $recipeCount = (int)$pdo->query('SELECT COUNT(*) FROM {recipe} WHERE is_active =
 </main>
 
 <!-- Voorraadvenster ------------------------------------------------ -->
-<?php if ($mayEdit): ?>
+<?php if ($mayEditMenu): ?>
 <div class="modal" id="pantryModal" hidden>
     <div class="modal-backdrop" data-close-pantry></div>
 
@@ -303,12 +312,12 @@ $recipeCount = (int)$pdo->query('SELECT COUNT(*) FROM {recipe} WHERE is_active =
 
             <div class="detail-servings">
                 <h3 class="detail-head">Nodig</h3>
-                <div class="servings<?= $mayEdit ? '' : ' servings-static' ?>" id="recipeServings">
-                    <?php if ($mayEdit): ?>
+                <div class="servings<?= $mayEditMenu ? '' : ' servings-static' ?>" id="recipeServings">
+                    <?php if ($mayEditMenu): ?>
                         <button class="servings-btn" data-servings="-1" aria-label="Minder personen">&minus;</button>
                     <?php endif; ?>
                     <span class="servings-value"><span data-servings-value>3</span> pers.</span>
-                    <?php if ($mayEdit): ?>
+                    <?php if ($mayEditMenu): ?>
                         <button class="servings-btn" data-servings="1" aria-label="Meer personen">+</button>
                     <?php endif; ?>
                 </div>
@@ -337,7 +346,8 @@ $recipeCount = (int)$pdo->query('SELECT COUNT(*) FROM {recipe} WHERE is_active =
         csrf: <?= json_encode(csrfToken()) ?>,
         weekStart: <?= json_encode($current) ?>,
         weekId: <?= json_encode($week['id'] ?? null) ?>,
-        mayEdit: <?= json_encode($mayEdit) ?>
+        mayEdit: <?= json_encode($mayEdit) ?>,
+        mayEditMenu: <?= json_encode($mayEditMenu) ?>
     };
 </script>
 <script src="assets/app.js"></script>

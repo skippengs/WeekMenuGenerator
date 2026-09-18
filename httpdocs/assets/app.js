@@ -190,7 +190,7 @@
 
     /** Zet een dag op een nieuw aantal en bewaar dat. */
     function changeServings(day, delta) {
-        if (!cfg.mayEdit) { return; }
+        if (!cfg.mayEditMenu) { return; }
 
         var next = getDayServings(day) + delta;
         if (next < 1 || next > 20) { return; }
@@ -418,6 +418,33 @@
     }
 
     renderShopping();
+
+    /* ---------- week weer van het slot ---------- */
+
+    document.addEventListener('click', function (e) {
+        var btn = e.target.closest('[data-unlock]');
+        if (!btn) { return; }
+
+        e.preventDefault();
+
+        if (!confirm('Het menu van deze week weer kunnen wijzigen? ' +
+                     'Wat al in Bring staat verandert daar niet meer door.')) {
+            return;
+        }
+
+        btn.disabled = true;
+
+        postJson('api/lock.php', {
+            csrf: cfg.csrf,
+            week_id: cfg.weekId,
+            locked: false
+        }).then(function () {
+            window.location.reload();
+        }).catch(function (err) {
+            btn.disabled = false;
+            toast(err.message, true);
+        });
+    });
 
     /* ---------- boodschappen afvinken ---------- */
 
