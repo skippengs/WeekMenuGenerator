@@ -15,8 +15,10 @@ function seedIngredients(): array
         // Vlees & vis
         ['gehakt',          'vlees', 1],
         ['kipfilet',        'vlees', 1],
+        ['kippenpootjes',   'vlees', 1],
         ['spekblokjes',     'vlees', 1],
         ['speklapjes',      'vlees', 1],
+        ['karbonade',       'vlees', 1],
         ['rookworst',       'vlees', 1],
         ['shoarmavlees',    'vlees', 1],
         ['runderlappen',    'vlees', 1],
@@ -47,6 +49,7 @@ function seedIngredients(): array
         ['broccoli',       'groente', 1],
         ['bloemkool',      'groente', 1],
         ['sperziebonen',   'groente', 1],
+        ['spruitjes',      'groente', 1],
         ['boerenkool',     'groente', 1],
         ['zuurkool',       'groente', 1],
         ['andijvie',       'groente', 1],
@@ -87,148 +90,344 @@ function seedIngredients(): array
 
 /**
  * Startset recepten: gewone Nederlandse doordeweekse kost.
- * [naam, categorie, effort (1-3), alleen_weekend, notitie, url, ingredienten]
  *
- * De ingredienten zijn bewust alleen de kenmerkende: die bepalen of een
- * recept omhoog schuift als je het in huis hebt. Peper, zout en olie
- * staan er dus niet tussen.
+ * ingredients = alleen de kenmerkende dingen. Die bepalen of een recept
+ * omhoog schuift als je ze in huis hebt, en wat er op de boodschappenlijst
+ * komt. Peper, zout en olie staan er dus niet tussen.
+ *
+ * steps = korte bereiding, één stap per regel.
  */
 function seedRecipes(): array
 {
     return [
-        ['Macaroni met gehakt', 'pasta', 1, 0, 'Klassieker. Kaas eroverheen en onder de grill.', null,
-            ['macaroni', 'gehakt', 'tomatenblokjes', 'ui', 'paprika', 'kaas']],
-
-        ['Spaghetti bolognese', 'pasta', 2, 0, null, null,
-            ['pasta', 'gehakt', 'tomatenblokjes', 'ui', 'knoflook', 'tomatenpuree', 'kaas']],
-
-        ['Tonijnpasta met courgette', 'pasta', 1, 0, 'Kwartiertje werk.', null,
-            ['pasta', 'tonijn uit blik', 'courgette', 'knoflook', 'room']],
-
-        ['Pasta pesto met kip', 'pasta', 1, 0, null, null,
-            ['pasta', 'kipfilet', 'champignons', 'room', 'kaas']],
-
-        ['Nasi goreng', 'rijst', 2, 0, 'Lekker met een gebakken ei erop.', null,
-            ['rijst', 'kipfilet', 'eieren', 'ui', 'prei', 'nasikruiden', 'ketjap']],
-
-        ['Nasi met saté', 'rijst', 2, 0, null, null,
-            ['rijst', 'kipfilet', 'satésaus', 'ui', 'nasikruiden', 'taugé']],
-
-        ['Bami goreng', 'noedels', 2, 0, null, null,
-            ['mie', 'kipfilet', 'prei', 'taugé', 'ketjap', 'eieren']],
-
-        ['Roerbakgroenten met kip en mie', 'noedels', 1, 0, 'Alles in één wok.', null,
-            ['mie', 'kipfilet', 'paprika', 'broccoli', 'ketjap', 'knoflook']],
-
-        ['Kip kerrie met rijst', 'rijst', 2, 0, null, null,
-            ['rijst', 'kipfilet', 'kerriepoeder', 'ui', 'room', 'prei']],
-
-        ['Chili con carne met rijst', 'rijst', 2, 0, null, null,
-            ['rijst', 'gehakt', 'kidneybonen', 'tomatenblokjes', 'paprika', 'ui']],
-
-        ['Risotto met champignons', 'rijst', 3, 0, 'Vraagt roeren, dus eerder een weekendklus.', null,
-            ['rijst', 'champignons', 'ui', 'room', 'kaas', 'bouillonblokje']],
-
-        ['Boerenkoolstamppot met rookworst', 'stamppot', 2, 0, null, null,
-            ['boerenkool', 'aardappelen', 'rookworst', 'spekblokjes', 'melk']],
-
-        ['Hutspot met klapstuk', 'stamppot', 3, 0, null, null,
-            ['wortel', 'ui', 'aardappelen', 'runderlappen', 'boter']],
-
-        ['Zuurkoolstamppot met spek', 'stamppot', 2, 0, null, null,
-            ['zuurkool', 'aardappelen', 'spekblokjes', 'rookworst', 'melk']],
-
-        ['Andijviestamppot', 'stamppot', 1, 0, 'Rauwe andijvie door de warme puree.', null,
-            ['andijvie', 'aardappelen', 'spekblokjes', 'melk']],
-
-        ['Spinaziestamppot met ei', 'stamppot', 1, 0, null, null,
-            ['spinazie', 'aardappelen', 'eieren', 'melk', 'kaas']],
-
-        ['Gehaktballen met aardappelen en groente', 'aardappel', 2, 0, 'Het klassieke AVG-tje.', null,
-            ['gehakt', 'aardappelen', 'sperziebonen', 'ui', 'appelmoes']],
-
-        ['Kipfilet met krieltjes en sperziebonen', 'aardappel', 2, 0, null, null,
-            ['kipfilet', 'aardappelen', 'sperziebonen', 'boter']],
-
-        ['Bloemkool met gehakt en aardappelen', 'aardappel', 1, 0, null, null,
-            ['bloemkool', 'gehakt', 'aardappelen', 'kaas']],
-
-        ['Vissticks met puree en worteltjes', 'aardappel', 1, 0, 'Altijd goed bij de kinderen.', null,
-            ['vissticks', 'aardappelen', 'wortel', 'melk']],
-
-        ['Speklapjes met sperziebonen en aardappelen', 'aardappel', 2, 0, null, null,
-            ['speklapjes', 'sperziebonen', 'aardappelen', 'ui']],
-
-        ['Rode kool met appeltjes en worst', 'aardappel', 2, 0, null, null,
-            ['rode kool', 'appel', 'aardappelen', 'rookworst']],
-
-        ['Broccoli met aardappelen en kaassaus', 'aardappel', 1, 0, null, null,
-            ['broccoli', 'aardappelen', 'kaas', 'melk', 'ham']],
-
-        ['Ovenschotel met aardappel en broccoli', 'oven', 2, 0, null, null,
-            ['aardappelen', 'broccoli', 'gehakt', 'kaas', 'room']],
-
-        ['Lasagne', 'oven', 3, 0, 'Even werk, maar je eet er twee dagen van.', null,
-            ['lasagnebladen', 'gehakt', 'tomatenblokjes', 'kaas', 'room', 'ui']],
-
-        ['Macaroni-ovenschotel', 'oven', 2, 0, null, null,
-            ['macaroni', 'gehakt', 'tomatenblokjes', 'kaas', 'paprika']],
-
-        ['Witlof met ham en kaas uit de oven', 'oven', 2, 0, null, null,
-            ['witlof', 'ham', 'kaas', 'aardappelen', 'melk']],
-
-        ['Zelfgemaakte pizza', 'oven', 2, 0, 'Iedereen belegt zijn eigen helft.', null,
-            ['pizzabodem', 'tomatenpuree', 'kaas', 'paprika', 'champignons', 'ham']],
-
-        ['Griekse ovenschotel met gehakt', 'oven', 3, 1, 'Weekendwerk.', null,
-            ['gehakt', 'aardappelen', 'courgette', 'tomatenblokjes', 'kaas', 'room']],
-
-        ['Erwtensoep met roggebrood', 'soep', 3, 1, 'Maak een grote pan, wordt de volgende dag beter.', null,
-            ['spliterwten', 'rookworst', 'wortel', 'prei', 'aardappelen', 'bouillonblokje']],
-
-        ['Tomatensoep met stokbrood', 'soep', 1, 0, null, null,
-            ['tomatenblokjes', 'gehakt', 'ui', 'bouillonblokje', 'stokbrood']],
-
-        ['Groentesoep met balletjes', 'soep', 2, 0, null, null,
-            ['wortel', 'prei', 'gehakt', 'bouillonblokje', 'stokbrood']],
-
-        ['Courgettesoep', 'soep', 1, 0, null, null,
-            ['courgette', 'ui', 'room', 'bouillonblokje', 'stokbrood']],
-
-        ['Wraps met kip', 'wraps', 1, 0, null, null,
-            ['wraps', 'kipfilet', 'paprika', 'sla', 'tomaat', 'kaas']],
-
-        ['Shoarma met pita en knoflooksaus', 'wraps', 1, 0, null, null,
-            ['shoarmavlees', 'pitabroodjes', 'knoflooksaus', 'sla', 'tomaat', 'komkommer']],
-
-        ['Hamburgers met salade en aardappelpartjes', 'wraps', 2, 0, null, null,
-            ['gehakt', 'aardappelen', 'sla', 'tomaat', 'kaas', 'ui']],
-
-        ['Hachee met rode kool', 'vlees', 3, 1, 'Uren sudderen, dus voor het weekend.', null,
-            ['runderlappen', 'ui', 'rode kool', 'aardappelen', 'bouillonblokje']],
-
-        ['Draadjesvlees met aardappelen', 'vlees', 3, 1, null, null,
-            ['runderlappen', 'ui', 'aardappelen', 'boter', 'bouillonblokje']],
-
-        ['Saucijzen met zuurkool', 'vlees', 2, 0, null, null,
-            ['saucijzen', 'zuurkool', 'aardappelen', 'spekblokjes']],
-
-        ['Zalmfilet met puree en spinazie', 'vis', 2, 0, null, null,
-            ['zalmfilet', 'aardappelen', 'spinazie', 'room', 'melk']],
-
-        ['Bruine bonen met spek', 'bonen', 2, 0, null, null,
-            ['bruine bonen', 'spekblokjes', 'ui', 'aardappelen']],
-
-        ['Kapucijners met spek en zilveruitjes', 'bonen', 2, 0, null, null,
-            ['kapucijners', 'spekblokjes', 'ui', 'aardappelen']],
-
-        ['Pannenkoeken', 'overig', 1, 0, 'Avondje niet koken.', null,
-            ['bloem', 'melk', 'eieren', 'spekblokjes', 'boter']],
-
-        ['Omelet met spek en brood', 'overig', 1, 0, null, null,
-            ['eieren', 'spekblokjes', 'kaas', 'stokbrood', 'champignons']],
-
-        ['Gevulde paprika uit de oven', 'oven', 2, 0, null, null,
-            ['paprika', 'gehakt', 'rijst', 'tomatenblokjes', 'kaas']],
+        [
+            'name' => 'Macaroni met gehakt',
+            'category' => 'pasta', 'effort' => 1, 'weekend_only' => 0,
+            'notes' => 'Klassieker. Kaas eroverheen en onder de grill.',
+            'ingredients' => ['macaroni', 'gehakt', 'tomatenblokjes', 'ui', 'paprika', 'kaas'],
+            'steps' => "Kook de macaroni beetgaar volgens de verpakking.\nBak het gehakt rul met de gesnipperde ui en de paprika.\nVoeg de tomatenblokjes toe en laat 10 minuten pruttelen.\nMeng de macaroni erdoor, schep in een ovenschaal.\nKaas erover en 10 minuten onder de grill tot hij goudbruin is.",
+        ],
+        [
+            'name' => 'Spaghetti bolognese',
+            'category' => 'pasta', 'effort' => 2, 'weekend_only' => 0,
+            'notes' => null,
+            'ingredients' => ['pasta', 'gehakt', 'tomatenblokjes', 'ui', 'knoflook', 'tomatenpuree', 'kaas'],
+            'steps' => "Fruit de ui en knoflook glazig in olie.\nBak het gehakt erbij tot het rul en bruin is.\nRoer de tomatenpuree erdoor en bak een minuut mee.\nTomatenblokjes erbij en minstens 20 minuten zachtjes laten sudderen.\nKook ondertussen de spaghetti. Serveer met geraspte kaas.",
+        ],
+        [
+            'name' => 'Pasta carbonara',
+            'category' => 'pasta', 'effort' => 1, 'weekend_only' => 0,
+            'notes' => 'Haal de pan van het vuur voor je de eieren erdoor roert, anders krijg je roerei.',
+            'ingredients' => ['pasta', 'spekblokjes', 'eieren', 'kaas', 'knoflook'],
+            'steps' => "Kook de pasta. Houd een kopje kookvocht apart.\nBak de spekblokjes uit met de knoflook tot ze knapperig zijn.\nKlop de eieren los met de geraspte kaas en flink peper.\nMeng de afgegoten pasta door het spek en haal de pan van het vuur.\nRoer het eimengsel erdoor, met een scheutje kookvocht tot het romig is.",
+        ],
+        [
+            'name' => 'Romige pasta met kip en champignons',
+            'category' => 'pasta', 'effort' => 1, 'weekend_only' => 0,
+            'notes' => null,
+            'ingredients' => ['pasta', 'kipfilet', 'champignons', 'room', 'kaas'],
+            'steps' => "Kook de pasta.\nSnijd de kip in blokjes en bak hem rondom gaar.\nVoeg de gesneden champignons toe en bak tot het vocht verdampt is.\nRoom erbij, laat een paar minuten indikken.\nMeng de pasta erdoor en werk af met kaas.",
+        ],
+        [
+            'name' => 'Tonijnpasta met courgette',
+            'category' => 'pasta', 'effort' => 1, 'weekend_only' => 0,
+            'notes' => 'Kwartiertje werk.',
+            'ingredients' => ['pasta', 'tonijn uit blik', 'courgette', 'knoflook', 'room'],
+            'steps' => "Kook de pasta.\nBak de courgette in blokjes met de knoflook.\nRoer de uitgelekte tonijn en de room erdoor.\nKort laten warmen en door de pasta scheppen.",
+        ],
+        [
+            'name' => 'Nasi goreng',
+            'category' => 'rijst', 'effort' => 2, 'weekend_only' => 0,
+            'notes' => 'Lekker met een gebakken ei erop.',
+            'ingredients' => ['rijst', 'kipfilet', 'eieren', 'ui', 'prei', 'nasikruiden', 'ketjap'],
+            'steps' => "Kook de rijst en laat hem afkoelen; koude rijst bakt veel beter.\nBak de kip in blokjes gaar en haal uit de pan.\nFruit ui en prei, voeg de nasikruiden toe en bak kort mee.\nRijst erbij, goed omscheppen, kip terug in de pan.\nAfmaken met ketjap. Bak de eieren apart en leg ze erop.",
+        ],
+        [
+            'name' => 'Nasi met saté',
+            'category' => 'rijst', 'effort' => 2, 'weekend_only' => 0,
+            'notes' => null,
+            'ingredients' => ['rijst', 'kipfilet', 'satésaus', 'ui', 'nasikruiden', 'taugé'],
+            'steps' => "Kook de rijst en laat hem afkoelen.\nSnijd de kip in blokjes en bak hem gaar.\nFruit de ui met de nasikruiden, voeg de rijst toe.\nTaugé er op het laatst doorscheppen, die moet knapperig blijven.\nSatésaus warm maken en over de kip schenken.",
+        ],
+        [
+            'name' => 'Kip kerrie met rijst',
+            'category' => 'rijst', 'effort' => 2, 'weekend_only' => 0,
+            'notes' => null,
+            'ingredients' => ['rijst', 'kipfilet', 'kerriepoeder', 'ui', 'room', 'prei'],
+            'steps' => "Kook de rijst.\nBak de kip in blokjes rondom bruin en haal uit de pan.\nFruit ui en prei, voeg het kerriepoeder toe en bak een minuut mee.\nRoom erbij, kip terug in de pan.\nLaat 10 minuten zachtjes pruttelen tot de saus gebonden is.",
+        ],
+        [
+            'name' => 'Chili con carne met rijst',
+            'category' => 'rijst', 'effort' => 2, 'weekend_only' => 0,
+            'notes' => null,
+            'ingredients' => ['rijst', 'gehakt', 'kidneybonen', 'tomatenblokjes', 'paprika', 'ui'],
+            'steps' => "Bak het gehakt rul met de ui en de paprika.\nVoeg tomatenblokjes toe en kruid stevig met chilipoeder, komijn en paprikapoeder.\n20 minuten laten sudderen.\nKidneybonen erbij en nog 5 minuten meewarmen.\nServeer met gekookte rijst.",
+        ],
+        [
+            'name' => 'Risotto met champignons',
+            'category' => 'rijst', 'effort' => 3, 'weekend_only' => 0,
+            'notes' => 'Vraagt roeren, dus eerder een weekendklus.',
+            'ingredients' => ['rijst', 'champignons', 'ui', 'room', 'kaas', 'bouillonblokje'],
+            'steps' => "Zet een pan bouillon klaar en houd die warm.\nFruit de ui, voeg de rijst toe en bak tot de korrels glazig zijn.\nSchep steeds een pollepel bouillon erbij en roer tot die is opgenomen.\nBak ondertussen de champignons apart goudbruin.\nNa 18 tot 20 minuten de champignons, room en kaas erdoor.",
+        ],
+        [
+            'name' => 'Bami goreng',
+            'category' => 'noedels', 'effort' => 2, 'weekend_only' => 0,
+            'notes' => null,
+            'ingredients' => ['mie', 'kipfilet', 'prei', 'taugé', 'ketjap', 'eieren'],
+            'steps' => "Kook de mie kort en spoel koud.\nBak de kip in blokjes gaar.\nVoeg prei toe en roerbak een paar minuten.\nMie erbij, ketjap eroverheen en goed omscheppen.\nTaugé op het laatst erdoor. Bak de eieren apart.",
+        ],
+        [
+            'name' => 'Roerbakgroenten met kip en mie',
+            'category' => 'noedels', 'effort' => 1, 'weekend_only' => 0,
+            'notes' => 'Alles in één wok.',
+            'ingredients' => ['mie', 'kipfilet', 'paprika', 'broccoli', 'ketjap', 'knoflook'],
+            'steps' => "Kook de mie volgens de verpakking.\nRoerbak de kip in blokjes met de knoflook.\nBroccoliroosjes en paprika erbij, 5 minuten roerbakken; ze mogen knapperig blijven.\nMie en ketjap erdoor scheppen en kort meewarmen.",
+        ],
+        [
+            'name' => 'Boerenkoolstamppot met rookworst',
+            'category' => 'stamppot', 'effort' => 2, 'weekend_only' => 0,
+            'notes' => null,
+            'ingredients' => ['boerenkool', 'aardappelen', 'rookworst', 'spekblokjes', 'melk'],
+            'steps' => "Kook de aardappelen met de boerenkool erbovenop in 20 minuten gaar.\nVerwarm de rookworst mee in de pan of apart in water.\nBak de spekblokjes knapperig uit.\nGiet af en stamp met een scheut warme melk en een klont boter.\nSpek erdoor en de rookworst erbij serveren.",
+        ],
+        [
+            'name' => 'Hutspot met klapstuk',
+            'category' => 'stamppot', 'effort' => 3, 'weekend_only' => 0,
+            'notes' => null,
+            'ingredients' => ['wortel', 'ui', 'aardappelen', 'runderlappen', 'boter'],
+            'steps' => "Kook het klapstuk in ruim water met wat zout in 2 uur zacht.\nKook aardappelen, wortel en ui samen in 20 minuten gaar.\nGiet af en stamp met boter tot een grove stamppot.\nSnijd het vlees in stukken en serveer erbij met wat kookvocht.",
+        ],
+        [
+            'name' => 'Zuurkoolstamppot met spek',
+            'category' => 'stamppot', 'effort' => 2, 'weekend_only' => 0,
+            'notes' => null,
+            'ingredients' => ['zuurkool', 'aardappelen', 'spekblokjes', 'rookworst', 'melk'],
+            'steps' => "Kook de aardappelen gaar.\nBak de spekblokjes uit tot ze knapperig zijn.\nVerwarm de rookworst.\nStamp de aardappelen met melk en boter, roer de zuurkool erdoor.\nSpek erover en de worst erbij.",
+        ],
+        [
+            'name' => 'Andijviestamppot',
+            'category' => 'stamppot', 'effort' => 1, 'weekend_only' => 0,
+            'notes' => 'Rauwe andijvie door de warme puree.',
+            'ingredients' => ['andijvie', 'aardappelen', 'spekblokjes', 'melk'],
+            'steps' => "Kook de aardappelen gaar.\nBak ondertussen de spekblokjes knapperig.\nStamp de aardappelen met warme melk en boter.\nRoer de fijngesneden rauwe andijvie erdoor; die slinkt in de warme puree.\nSpek erdoor en meteen opdienen.",
+        ],
+        [
+            'name' => 'Spinaziestamppot met ei',
+            'category' => 'stamppot', 'effort' => 1, 'weekend_only' => 0,
+            'notes' => null,
+            'ingredients' => ['spinazie', 'aardappelen', 'eieren', 'melk', 'kaas'],
+            'steps' => "Kook de aardappelen gaar en de eieren hard in 8 minuten.\nLaat de spinazie in een pan slinken en knijp het vocht eruit.\nStamp de aardappelen met melk en boter.\nSpinazie en geraspte kaas erdoor.\nServeer met de gehalveerde eieren erop.",
+        ],
+        [
+            'name' => 'Gehaktballen met aardappelen en groente',
+            'category' => 'aardappel', 'effort' => 2, 'weekend_only' => 0,
+            'notes' => 'Het klassieke AVG-tje.',
+            'ingredients' => ['gehakt', 'aardappelen', 'sperziebonen', 'ui', 'appelmoes'],
+            'steps' => "Meng het gehakt met ei, paneermeel, fijne ui, zout en peper.\nDraai er ballen van en bak ze rondom bruin.\nZet het vuur laag en laat ze met deksel 20 minuten garen.\nKook ondertussen de aardappelen en de sperziebonen.\nServeer met de jus uit de pan en een schep appelmoes.",
+        ],
+        [
+            'name' => 'Kipfilet met krieltjes en sperziebonen',
+            'category' => 'aardappel', 'effort' => 2, 'weekend_only' => 0,
+            'notes' => null,
+            'ingredients' => ['kipfilet', 'aardappelen', 'sperziebonen', 'boter'],
+            'steps' => "Kook de krieltjes 10 minuten voor en bak ze daarna goudbruin in boter.\nKook de sperziebonen in 8 minuten beetgaar.\nBak de kipfilet op middelhoog vuur in 6 minuten per kant gaar.\nLaat de kip even rusten voor je hem aansnijdt.",
+        ],
+        [
+            'name' => 'Karbonade met bloemkool en aardappelen',
+            'category' => 'aardappel', 'effort' => 2, 'weekend_only' => 0,
+            'notes' => null,
+            'ingredients' => ['karbonade', 'bloemkool', 'aardappelen', 'boter'],
+            'steps' => "Kook de aardappelen gaar.\nKook de bloemkoolroosjes in 12 minuten beetgaar.\nBak de karbonades in boter op hoog vuur rondom bruin.\nVuur laag, deksel erop, nog 10 minuten garen.\nBlus de pan af met een scheutje water voor de jus.",
+        ],
+        [
+            'name' => 'Bloemkool met gehakt en aardappelen',
+            'category' => 'aardappel', 'effort' => 1, 'weekend_only' => 0,
+            'notes' => null,
+            'ingredients' => ['bloemkool', 'gehakt', 'aardappelen', 'kaas'],
+            'steps' => "Kook de aardappelen en de bloemkool gaar.\nBak het gehakt rul en kruid het stevig.\nSchep alles om in een schaal, kaas erover.\nKort onder de grill tot de kaas gesmolten is.",
+        ],
+        [
+            'name' => 'Vissticks met puree en worteltjes',
+            'category' => 'aardappel', 'effort' => 1, 'weekend_only' => 0,
+            'notes' => 'Altijd goed bij de kinderen.',
+            'ingredients' => ['vissticks', 'aardappelen', 'wortel', 'melk'],
+            'steps' => "Kook de aardappelen gaar en stamp ze met warme melk en boter.\nKook de wortel in 10 minuten beetgaar.\nBak of oven de vissticks volgens de verpakking.\nServeer met een schijfje citroen.",
+        ],
+        [
+            'name' => 'Speklapjes met sperziebonen en aardappelen',
+            'category' => 'aardappel', 'effort' => 2, 'weekend_only' => 0,
+            'notes' => null,
+            'ingredients' => ['speklapjes', 'sperziebonen', 'aardappelen', 'ui'],
+            'steps' => "Kook de aardappelen en de sperziebonen.\nBak de speklapjes op middelhoog vuur rustig bruin; te hoog vuur maakt ze taai.\nHaal ze uit de pan en fruit de ui in het achtergebleven vet.\nSchenk de ui met het bakvet over het vlees.",
+        ],
+        [
+            'name' => 'Spruitjes met aardappelen en spek',
+            'category' => 'aardappel', 'effort' => 1, 'weekend_only' => 0,
+            'notes' => 'Niet te lang koken, dan worden ze bitter.',
+            'ingredients' => ['spruitjes', 'aardappelen', 'spekblokjes'],
+            'steps' => "Kook de aardappelen gaar.\nKook de spruitjes in 10 tot 12 minuten beetgaar, niet langer.\nBak de spekblokjes knapperig uit.\nSchep de spruitjes door het spek met een klont boter.",
+        ],
+        [
+            'name' => 'Rode kool met appeltjes en worst',
+            'category' => 'aardappel', 'effort' => 2, 'weekend_only' => 0,
+            'notes' => null,
+            'ingredients' => ['rode kool', 'appel', 'aardappelen', 'rookworst'],
+            'steps' => "Doe de rode kool met de appel in stukken en een scheut water in een pan.\nVoeg een laurierblad en een paar kruidnagels toe.\n30 minuten met deksel zachtjes stoven.\nKook de aardappelen en verwarm de rookworst.",
+        ],
+        [
+            'name' => 'Broccoli met aardappelen en kaassaus',
+            'category' => 'aardappel', 'effort' => 1, 'weekend_only' => 0,
+            'notes' => null,
+            'ingredients' => ['broccoli', 'aardappelen', 'kaas', 'melk', 'ham'],
+            'steps' => "Kook de aardappelen en de broccoli beetgaar.\nSmelt boter, roer er bloem door en schenk beetje bij beetje melk erbij.\nBlijf roeren tot de saus bindt, dan de kaas erdoor laten smelten.\nHam in reepjes door de saus en over de groente schenken.",
+        ],
+        [
+            'name' => 'Prei-aardappelschotel met gehakt',
+            'category' => 'oven', 'effort' => 2, 'weekend_only' => 0,
+            'notes' => null,
+            'ingredients' => ['prei', 'aardappelen', 'gehakt', 'kaas', 'room'],
+            'steps' => "Verwarm de oven voor op 200 graden.\nKook de aardappelen gaar en snijd ze in plakken.\nBak het gehakt rul, voeg de prei in ringen toe en bak tot die zacht is.\nLaag om laag in een schaal, room eroverheen, kaas erop.\n25 minuten in de oven tot de bovenkant goudbruin is.",
+        ],
+        [
+            'name' => 'Ovenschotel met aardappel en broccoli',
+            'category' => 'oven', 'effort' => 2, 'weekend_only' => 0,
+            'notes' => null,
+            'ingredients' => ['aardappelen', 'broccoli', 'gehakt', 'kaas', 'room'],
+            'steps' => "Verwarm de oven voor op 200 graden.\nKook de aardappelen en de broccoli beetgaar.\nBak het gehakt rul en kruid het.\nAlles in een schaal, room erover, afdekken met kaas.\n25 minuten in de oven.",
+        ],
+        [
+            'name' => 'Lasagne',
+            'category' => 'oven', 'effort' => 3, 'weekend_only' => 0,
+            'notes' => 'Even werk, maar je eet er twee dagen van.',
+            'ingredients' => ['lasagnebladen', 'gehakt', 'tomatenblokjes', 'kaas', 'room', 'ui'],
+            'steps' => "Maak een bolognesesaus van gehakt, ui en tomatenblokjes; 30 minuten laten sudderen.\nMaak een bechamel van boter, bloem en melk, of gebruik room.\nVerwarm de oven voor op 180 graden.\nStapel om en om saus, lasagnebladen en bechamel; eindig met bechamel.\nKaas erover en 40 minuten in de oven. Laat hem 10 minuten staan voor het snijden.",
+        ],
+        [
+            'name' => 'Macaroni-ovenschotel',
+            'category' => 'oven', 'effort' => 2, 'weekend_only' => 0,
+            'notes' => null,
+            'ingredients' => ['macaroni', 'gehakt', 'tomatenblokjes', 'kaas', 'paprika'],
+            'steps' => "Verwarm de oven voor op 200 graden.\nKook de macaroni net niet gaar; hij gaart in de oven door.\nBak het gehakt rul met de paprika, tomatenblokjes erbij.\nMeng met de macaroni in een ovenschaal, kaas erover.\n20 minuten in de oven.",
+        ],
+        [
+            'name' => 'Witlof met ham en kaas uit de oven',
+            'category' => 'oven', 'effort' => 2, 'weekend_only' => 0,
+            'notes' => null,
+            'ingredients' => ['witlof', 'ham', 'kaas', 'aardappelen', 'melk'],
+            'steps' => "Kook de witlof in 12 minuten gaar en laat hem goed uitlekken.\nRol elke stronk in een plak ham.\nLeg ze in een ingevette schaal.\nMaak een kaassaus van boter, bloem, melk en kaas en schenk eroverheen.\n20 minuten op 200 graden. Serveer met gekookte aardappelen.",
+        ],
+        [
+            'name' => 'Kippenpootjes uit de oven met krieltjes',
+            'category' => 'oven', 'effort' => 2, 'weekend_only' => 0,
+            'notes' => 'Alles op één plaat, dus weinig afwas.',
+            'ingredients' => ['kippenpootjes', 'aardappelen', 'paprika', 'ui'],
+            'steps' => "Verwarm de oven voor op 200 graden.\nMeng krieltjes, paprika en ui met olie, paprikapoeder, zout en peper.\nSpreid uit op een bakplaat en leg de kippenpootjes ertussen.\n45 minuten in de oven; keer alles halverwege om.",
+        ],
+        [
+            'name' => 'Zelfgemaakte pizza',
+            'category' => 'oven', 'effort' => 2, 'weekend_only' => 0,
+            'notes' => 'Iedereen belegt zijn eigen helft.',
+            'ingredients' => ['pizzabodem', 'tomatenpuree', 'kaas', 'paprika', 'champignons', 'ham'],
+            'steps' => "Verwarm de oven zo heet mogelijk voor, minstens 220 graden.\nBestrijk de bodem dun met tomatenpuree en wat oregano.\nBeleg met kaas en de rest; niet te veel, anders wordt hij zompig.\n12 tot 15 minuten bakken tot de randen bruin zijn.",
+        ],
+        [
+            'name' => 'Griekse ovenschotel met gehakt',
+            'category' => 'oven', 'effort' => 3, 'weekend_only' => 1,
+            'notes' => 'Weekendwerk.',
+            'ingredients' => ['gehakt', 'aardappelen', 'courgette', 'tomatenblokjes', 'kaas', 'room'],
+            'steps' => "Snijd aardappel en courgette in plakken en bak ze kort aan.\nBak het gehakt met ui, kaneel en oregano, tomatenblokjes erbij.\nLaat de saus 20 minuten indikken.\nLaag om laag stapelen, afwerken met room en kaas.\n40 minuten op 180 graden.",
+        ],
+        [
+            'name' => 'Erwtensoep met roggebrood',
+            'category' => 'soep', 'effort' => 3, 'weekend_only' => 1,
+            'notes' => 'Maak een grote pan, wordt de volgende dag beter.',
+            'ingredients' => ['spliterwten', 'rookworst', 'wortel', 'prei', 'aardappelen', 'bouillonblokje'],
+            'steps' => "Zet de spliterwten op met ruim water en bouillon; breng aan de kook.\nSchuim af en laat 45 minuten koken tot de erwten uit elkaar vallen.\nVoeg aardappel, wortel en prei toe en kook nog 30 minuten.\nSnijd de rookworst in plakken en warm die de laatste 10 minuten mee.\nServeer met roggebrood en katenspek.",
+        ],
+        [
+            'name' => 'Tomatensoep met stokbrood',
+            'category' => 'soep', 'effort' => 1, 'weekend_only' => 0,
+            'notes' => null,
+            'ingredients' => ['tomatenblokjes', 'gehakt', 'ui', 'bouillonblokje', 'stokbrood'],
+            'steps' => "Draai kleine balletjes van het gehakt.\nFruit de ui, voeg tomatenblokjes en bouillon toe.\n15 minuten laten trekken en pureren als je hem glad wilt.\nBalletjes erin en 10 minuten zachtjes gaar laten worden.\nServeer met warm stokbrood.",
+        ],
+        [
+            'name' => 'Groentesoep met balletjes',
+            'category' => 'soep', 'effort' => 2, 'weekend_only' => 0,
+            'notes' => null,
+            'ingredients' => ['wortel', 'prei', 'gehakt', 'bouillonblokje', 'stokbrood'],
+            'steps' => "Zet ruim bouillon op.\nDraai kleine balletjes van het gehakt en laat ze in de bouillon gaar worden.\nVoeg wortel en prei in kleine stukjes toe.\n15 minuten zachtjes koken tot de groente gaar is.\nServeer met stokbrood.",
+        ],
+        [
+            'name' => 'Wraps met kip',
+            'category' => 'wraps', 'effort' => 1, 'weekend_only' => 0,
+            'notes' => null,
+            'ingredients' => ['wraps', 'kipfilet', 'paprika', 'sla', 'tomaat', 'kaas'],
+            'steps' => "Snijd de kip in reepjes en bak hem gaar met paprika en wat kruiden.\nWarm de wraps kort in een droge koekenpan.\nBeleg met sla, tomaat, de kip en geraspte kaas.\nRol op en snijd schuin doormidden.",
+        ],
+        [
+            'name' => 'Shoarma met pita en knoflooksaus',
+            'category' => 'wraps', 'effort' => 1, 'weekend_only' => 0,
+            'notes' => null,
+            'ingredients' => ['shoarmavlees', 'pitabroodjes', 'knoflooksaus', 'sla', 'tomaat', 'komkommer'],
+            'steps' => "Bak het shoarmavlees op hoog vuur rondom gaar.\nWarm de pitabroodjes in de oven of de broodrooster.\nSnijd sla, tomaat en komkommer klein.\nVul de broodjes met vlees, groente en knoflooksaus.",
+        ],
+        [
+            'name' => 'Hamburgers met salade en aardappelpartjes',
+            'category' => 'wraps', 'effort' => 2, 'weekend_only' => 0,
+            'notes' => null,
+            'ingredients' => ['gehakt', 'aardappelen', 'sla', 'tomaat', 'kaas', 'ui'],
+            'steps' => "Verwarm de oven voor op 200 graden.\nSnijd de aardappelen in partjes, meng met olie en paprikapoeder, 35 minuten in de oven.\nDraai platte burgers van het gehakt en kruid ze.\nBak ze 4 minuten per kant; leg de laatste minuut kaas erop.\nServeer met een simpele salade van sla, tomaat en ui.",
+        ],
+        [
+            'name' => 'Hachee met rode kool',
+            'category' => 'vlees', 'effort' => 3, 'weekend_only' => 1,
+            'notes' => 'Uren sudderen, dus voor het weekend.',
+            'ingredients' => ['runderlappen', 'ui', 'rode kool', 'aardappelen', 'bouillonblokje'],
+            'steps' => "Snijd het vlees in blokjes en bak ze rondom bruin.\nHaal het vlees eruit en fruit een flinke hoeveelheid ui in het vet.\nVlees terug, bouillon, laurier, kruidnagel en een scheut azijn erbij.\nMinstens 2,5 uur op heel laag vuur laten sudderen.\nServeer met rode kool en aardappelen.",
+        ],
+        [
+            'name' => 'Draadjesvlees met aardappelen',
+            'category' => 'vlees', 'effort' => 3, 'weekend_only' => 1,
+            'notes' => null,
+            'ingredients' => ['runderlappen', 'ui', 'aardappelen', 'boter', 'bouillonblokje'],
+            'steps' => "Bak de lappen in boter rondom bruin.\nVoeg ui, bouillon, laurier en kruidnagel toe.\n3 uur op het laagste vuur met deksel laten staan.\nHet vlees is klaar als het uit elkaar valt.\nBind de jus eventueel en serveer met aardappelen.",
+        ],
+        [
+            'name' => 'Saucijzen met zuurkool',
+            'category' => 'vlees', 'effort' => 2, 'weekend_only' => 0,
+            'notes' => null,
+            'ingredients' => ['saucijzen', 'zuurkool', 'aardappelen', 'spekblokjes'],
+            'steps' => "Bak de saucijzen rustig rondom bruin en laat ze met deksel 20 minuten garen.\nKook de aardappelen.\nWarm de zuurkool met de uitgebakken spekblokjes.\nServeer met de jus uit de saucijzenpan.",
+        ],
+        [
+            'name' => 'Zalmfilet met puree en spinazie',
+            'category' => 'vis', 'effort' => 2, 'weekend_only' => 0,
+            'notes' => null,
+            'ingredients' => ['zalmfilet', 'aardappelen', 'spinazie', 'room', 'melk'],
+            'steps' => "Kook de aardappelen en stamp ze met warme melk en boter.\nLaat de spinazie slinken en roer er een scheut room door.\nBak de zalm 3 tot 4 minuten op de huid, draai hem om en haal de pan van het vuur.\nDe zalm gaart na; hij mag vanbinnen net glazig blijven.",
+        ],
+        [
+            'name' => 'Bruine bonen met spek',
+            'category' => 'bonen', 'effort' => 2, 'weekend_only' => 0,
+            'notes' => null,
+            'ingredients' => ['bruine bonen', 'spekblokjes', 'ui', 'aardappelen'],
+            'steps' => "Bak de spekblokjes uit met de gesnipperde ui.\nVoeg de uitgelekte bruine bonen toe.\nKruid met wat azijn, stroop of mosterd naar smaak.\n10 minuten zachtjes warmen. Serveer met gekookte aardappelen.",
+        ],
+        [
+            'name' => 'Kapucijners met spek en zilveruitjes',
+            'category' => 'bonen', 'effort' => 2, 'weekend_only' => 0,
+            'notes' => null,
+            'ingredients' => ['kapucijners', 'spekblokjes', 'ui', 'aardappelen'],
+            'steps' => "Bak de spekblokjes knapperig uit.\nWarm de uitgelekte kapucijners door.\nServeer met zilveruitjes, augurk, piccalilly en gekookte aardappelen.\nIedereen schept zelf op wat hij wil.",
+        ],
+        [
+            'name' => 'Pannenkoeken',
+            'category' => 'overig', 'effort' => 1, 'weekend_only' => 0,
+            'notes' => 'Avondje niet koken.',
+            'ingredients' => ['bloem', 'melk', 'eieren', 'spekblokjes', 'boter'],
+            'steps' => "Klop bloem, eieren, melk en een snuf zout tot een glad beslag.\nLaat het beslag een half uur rusten; dat scheelt echt.\nBak de spekblokjes vast uit in de pan en schenk er beslag overheen.\nBak op middelhoog vuur, keer als de bovenkant droog is.",
+        ],
     ];
 }

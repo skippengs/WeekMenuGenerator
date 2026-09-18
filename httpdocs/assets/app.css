@@ -212,9 +212,25 @@ a { color: var(--accent); }
 
 .recipe-name {
     display: block;
+    padding: 0;
+    border: 0;
+    background: none;
+    color: inherit;
+    font: inherit;
     font-size: 17px;
     font-weight: 500;
+    text-align: left;
     margin-bottom: 5px;
+}
+
+button.recipe-name {
+    cursor: pointer;
+    border-bottom: 1px dotted var(--border);
+}
+
+button.recipe-name:hover {
+    color: var(--accent);
+    border-bottom-color: var(--accent);
 }
 
 .recipe-name.is-muted { color: var(--text-soft); font-style: italic; font-size: 15px; }
@@ -657,3 +673,64 @@ code {
     word-break: break-word;
     overflow-x: auto;
 }
+
+
+/* ---------- receptvenster ---------- */
+
+.modal-card-recipe { max-width: 540px; }
+
+.modal-card-recipe .modal-body { padding-top: 14px; }
+
+.modal-card-recipe .recipe-meta { margin-bottom: 12px; }
+
+.modal-card-recipe .recipe-note {
+    margin: 0 0 18px;
+    font-size: 14px;
+    font-style: italic;
+}
+
+.modal-card-recipe .recipe-note:empty { display: none; }
+
+.detail-head {
+    margin: 0 0 8px;
+    font-size: 12px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: .05em;
+    color: var(--text-soft);
+}
+
+.detail-ingredients {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin: 0 0 22px;
+    padding: 0;
+    list-style: none;
+}
+
+.detail-ingredients li {
+    padding: 4px 11px;
+    border-radius: 999px;
+    background: var(--surface-alt);
+    font-size: 13px;
+}
+
+.detail-steps {
+    margin: 0 0 18px;
+    padding-left: 22px;
+}
+
+.detail-steps li {
+    margin-bottom: 9px;
+    padding-left: 4px;
+    font-size: 15px;
+    line-height: 1.5;
+}
+
+.detail-steps li::marker {
+    color: var(--accent);
+    font-weight: 700;
+}
+
+.modal-card-recipe .modal-foot .hint { flex: 1; }

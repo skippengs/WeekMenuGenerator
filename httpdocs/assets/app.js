@@ -104,6 +104,93 @@
         });
     }
 
+    /* ---------- recept bekijken ---------- */
+
+    var recipeModal = document.getElementById('recipeModal');
+
+    function fillList(el, items, wrap) {
+        el.innerHTML = '';
+        items.forEach(function (text) {
+            var li = document.createElement(wrap);
+            li.textContent = text;
+            el.appendChild(li);
+        });
+    }
+
+    function openRecipe(id) {
+        if (!recipeModal) { return; }
+
+        document.getElementById('recipeTitle').textContent = 'Bezig met laden...';
+        document.getElementById('recipeMeta').innerHTML = '';
+        document.getElementById('recipeIngredients').innerHTML = '';
+        document.getElementById('recipeSteps').innerHTML = '';
+        document.getElementById('recipeNotes').textContent = '';
+        document.getElementById('recipeHint').textContent = '';
+        document.getElementById('recipeLinkWrap').hidden = true;
+
+        recipeModal.hidden = false;
+        document.body.classList.add('modal-open');
+
+        fetch('api/recipe.php?id=' + encodeURIComponent(id))
+            .then(function (res) { return res.json(); })
+            .then(function (data) {
+                if (data.error) { throw new Error(data.error); }
+
+                document.getElementById('recipeTitle').textContent = data.name;
+
+                document.getElementById('recipeMeta').innerHTML =
+                    '<span class="chip"></span><span class="chip chip-soft"></span>';
+                var chips = document.getElementById('recipeMeta').children;
+                chips[0].textContent = data.category;
+                chips[1].textContent = data.effort;
+
+                document.getElementById('recipeNotes').textContent = data.notes || '';
+
+                fillList(document.getElementById('recipeIngredients'), data.ingredients, 'li');
+                fillList(document.getElementById('recipeSteps'), data.steps, 'li');
+
+                if (!data.steps.length) {
+                    document.getElementById('recipeHint').textContent =
+                        'Nog geen bereiding ingevuld. Dat kan via Recepten beheren.';
+                }
+
+                if (data.url) {
+                    document.getElementById('recipeLink').href = data.url;
+                    document.getElementById('recipeLinkWrap').hidden = false;
+                }
+            })
+            .catch(function (err) {
+                document.getElementById('recipeTitle').textContent = 'Niet gelukt';
+                document.getElementById('recipeHint').textContent = err.message;
+            });
+    }
+
+    function closeRecipe() {
+        if (!recipeModal) { return; }
+        recipeModal.hidden = true;
+        if (!modal || modal.hidden) {
+            document.body.classList.remove('modal-open');
+        }
+    }
+
+    document.addEventListener('click', function (e) {
+        var trigger = e.target.closest('[data-recipe]');
+        if (trigger) {
+            e.preventDefault();
+            openRecipe(trigger.getAttribute('data-recipe'));
+        }
+        if (e.target.closest('[data-close-recipe]')) {
+            e.preventDefault();
+            closeRecipe();
+        }
+    });
+
+    document.addEventListener('keydown', function (e) {
+        if (e.key === 'Escape' && recipeModal && !recipeModal.hidden) {
+            closeRecipe();
+        }
+    });
+
     /* ---------- losse dag opnieuw ---------- */
 
     document.addEventListener('click', function (e) {
@@ -130,7 +217,11 @@
             setField(dayEl, 'notes', data.notes);
 
             var nameEl = dayEl.querySelector('[data-field="name"]');
-            if (nameEl) { nameEl.classList.remove('is-muted'); }
+            if (nameEl) {
+                nameEl.classList.remove('is-muted');
+                // Zonder dit opent de klik nog het vorige recept.
+                nameEl.setAttribute('data-recipe', data.id);
+            }
 
             dayEl.classList.remove('is-swapped');
             void dayEl.offsetWidth;          // forceer herstart van de animatie

@@ -150,6 +150,7 @@ if (!$alreadyInstalled && $_SERVER['REQUEST_METHOD'] === 'POST') {
                     effort       TINYINT UNSIGNED NOT NULL DEFAULT 2,
                     weekend_only TINYINT(1)    NOT NULL DEFAULT 0,
                     notes        TEXT          NULL,
+                    steps        TEXT          NULL,
                     url          VARCHAR(400)  NULL,
                     is_mine      TINYINT(1)    NOT NULL DEFAULT 0,
                     is_active    TINYINT(1)    NOT NULL DEFAULT 1,
@@ -236,8 +237,8 @@ if (!$alreadyInstalled && $_SERVER['REQUEST_METHOD'] === 'POST') {
                 }
 
                 $insRec = $pdo->prepare(
-                    "INSERT INTO `{$p}recipe` (name, category, effort, weekend_only, notes, url, is_mine)
-                     VALUES (?, ?, ?, ?, ?, ?, 0)"
+                    "INSERT INTO `{$p}recipe` (name, category, effort, weekend_only, notes, steps, url, is_mine)
+                     VALUES (?, ?, ?, ?, ?, ?, ?, 0)"
                 );
                 $insLink = $pdo->prepare(
                     "INSERT IGNORE INTO `{$p}recipe_ingredient` (recipe_id, ingredient_id, is_key) VALUES (?, ?, 1)"
@@ -247,11 +248,14 @@ if (!$alreadyInstalled && $_SERVER['REQUEST_METHOD'] === 'POST') {
                 );
 
                 $recipes = seedRecipes();
-                foreach ($recipes as [$name, $cat, $effort, $weekendOnly, $notes, $url, $ingredients]) {
-                    $insRec->execute([$name, $cat, $effort, $weekendOnly, $notes, $url]);
+                foreach ($recipes as $r) {
+                    $insRec->execute([
+                        $r['name'], $r['category'], $r['effort'], $r['weekend_only'],
+                        $r['notes'] ?? null, $r['steps'] ?? null, $r['url'] ?? null,
+                    ]);
                     $recipeId = (int)$pdo->lastInsertId();
 
-                    foreach ($ingredients as $ingName) {
+                    foreach ($r['ingredients'] as $ingName) {
                         if (!isset($ingIds[$ingName])) {
                             $insMissing->execute([$ingName, 'rest']);
                             $ingIds[$ingName] = (int)$pdo->lastInsertId();

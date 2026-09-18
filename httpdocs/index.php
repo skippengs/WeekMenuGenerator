@@ -118,7 +118,9 @@ $recipeCount = (int)$pdo->query('SELECT COUNT(*) FROM {recipe} WHERE is_active =
                             <span class="junk-label"><?= esc(JUNK_LABEL) ?></span>
                         <?php elseif ($hasRecipe): ?>
                             <div class="recipe">
-                                <span class="recipe-name" data-field="name"><?= esc($entry['name']) ?></span>
+                                <button class="recipe-name" data-field="name"
+                                        data-recipe="<?= (int)$entry['id'] ?>"
+                                        title="Bekijk de bereiding"><?= esc($entry['name']) ?></button>
                                 <div class="recipe-meta">
                                     <span class="chip" data-field="category">
                                         <?= esc(CATEGORIES[$entry['category']] ?? $entry['category']) ?>
@@ -212,6 +214,40 @@ $recipeCount = (int)$pdo->query('SELECT COUNT(*) FROM {recipe} WHERE is_active =
             <div class="modal-foot-right">
                 <button class="btn btn-ghost" data-close-pantry>Annuleren</button>
                 <button class="btn btn-primary" data-pantry-submit>Genereer weekmenu</button>
+            </div>
+        </footer>
+    </div>
+</div>
+
+<!-- Receptvenster ------------------------------------------------- -->
+<div class="modal" id="recipeModal" hidden>
+    <div class="modal-backdrop" data-close-recipe></div>
+
+    <div class="modal-card modal-card-recipe" role="dialog" aria-modal="true" aria-labelledby="recipeTitle">
+        <header class="modal-head">
+            <h2 id="recipeTitle">&nbsp;</h2>
+            <button class="modal-x" data-close-recipe aria-label="Sluiten">&times;</button>
+        </header>
+
+        <div class="modal-body">
+            <div class="recipe-meta" id="recipeMeta"></div>
+            <p class="recipe-note" id="recipeNotes"></p>
+
+            <h3 class="detail-head">Nodig</h3>
+            <ul class="detail-ingredients" id="recipeIngredients"></ul>
+
+            <h3 class="detail-head">Bereiding</h3>
+            <ol class="detail-steps" id="recipeSteps"></ol>
+
+            <p id="recipeLinkWrap" hidden>
+                <a id="recipeLink" href="#" target="_blank" rel="noopener">Volledig recept &rarr;</a>
+            </p>
+        </div>
+
+        <footer class="modal-foot">
+            <span class="hint" id="recipeHint"></span>
+            <div class="modal-foot-right">
+                <button class="btn btn-ghost" data-close-recipe>Sluiten</button>
             </div>
         </footer>
     </div>

@@ -71,6 +71,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $weekendOnly = isset($_POST['weekend_only']) ? 1 : 0;
                 $isMine      = isset($_POST['is_mine']) ? 1 : 0;
                 $notes       = trim((string)($_POST['notes'] ?? ''));
+                $steps       = trim((string)($_POST['steps'] ?? ''));
                 $url         = trim((string)($_POST['url'] ?? ''));
 
                 if ($name === '') {
@@ -87,17 +88,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $pdo->prepare(
                         'UPDATE {recipe}
                             SET name = ?, category = ?, effort = ?, weekend_only = ?,
-                                notes = ?, url = ?, is_mine = ?
+                                notes = ?, steps = ?, url = ?, is_mine = ?
                           WHERE id = ?'
                     )->execute([$name, $category, $effort, $weekendOnly,
-                                $notes ?: null, $url ?: null, $isMine, $id]);
+                                $notes ?: null, $steps ?: null, $url ?: null, $isMine, $id]);
                     $notice = 'Recept bijgewerkt.';
                 } else {
                     $pdo->prepare(
-                        'INSERT INTO {recipe} (name, category, effort, weekend_only, notes, url, is_mine)
-                         VALUES (?, ?, ?, ?, ?, ?, ?)'
+                        'INSERT INTO {recipe} (name, category, effort, weekend_only, notes, steps, url, is_mine)
+                         VALUES (?, ?, ?, ?, ?, ?, ?, ?)'
                     )->execute([$name, $category, $effort, $weekendOnly,
-                                $notes ?: null, $url ?: null, $isMine]);
+                                $notes ?: null, $steps ?: null, $url ?: null, $isMine]);
                     $id = (int)$pdo->lastInsertId();
                     $notice = 'Recept toegevoegd.';
                 }
@@ -239,8 +240,16 @@ $val = static fn(string $key, $fallback = '') => $editing[$key] ?? $fallback;
             </div>
 
             <div class="field">
+                <label for="f-steps">Bereiding</label>
+                <textarea id="f-steps" name="steps" rows="7"
+                          placeholder="Kook de aardappelen gaar.&#10;Bak het gehakt rul.&#10;Alles in een schaal, kaas erover."><?= esc((string)$val('steps')) ?></textarea>
+                <p class="field-hint">Eén stap per regel. Verschijnt als genummerde lijst als je op het gerecht klikt.</p>
+            </div>
+
+            <div class="field">
                 <label for="f-notes">Notitie</label>
                 <textarea id="f-notes" name="notes" placeholder="Optioneel"><?= esc((string)$val('notes')) ?></textarea>
+                <p class="field-hint">Korte opmerking, staat onder de naam in het weekmenu.</p>
             </div>
 
             <div class="field">

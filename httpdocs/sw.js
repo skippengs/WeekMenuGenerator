@@ -8,7 +8,7 @@
  * mensen de oude bestanden houden.
  */
 
-const CACHE = 'weekmenu-v1';
+const CACHE = 'weekmenu-v2';
 
 const SHELL = [
     'assets/app.css',
@@ -67,12 +67,22 @@ self.addEventListener('fetch', (event) => {
         return;
     }
 
-    // Plaatjes, css en js veranderen zelden: eerst de cache.
+    // Plaatjes, css en js: meteen uit de cache, maar op de achtergrond
+    // wel verversen. Anders blijf je na een wijziging op de oude css en
+    // js hangen tot iemand eraan denkt de cachenaam te verhogen.
     event.respondWith(
-        caches.match(req).then((hit) => hit || fetch(req).then((res) => {
-            const copy = res.clone();
-            caches.open(CACHE).then((c) => c.put(req, copy));
-            return res;
-        }))
+        caches.match(req).then((hit) => {
+            const fresh = fetch(req)
+                .then((res) => {
+                    if (res && res.ok) {
+                        const copy = res.clone();
+                        caches.open(CACHE).then((c) => c.put(req, copy));
+                    }
+                    return res;
+                })
+                .catch(() => hit);
+
+            return hit || fresh;
+        })
     );
 });

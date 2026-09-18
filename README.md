@@ -10,7 +10,8 @@ wordt overgeslagen. Draait op gewone PHP-webhosting met MySQL.
 - Eigen recepten toevoegen via een admin paneel
 - Losse dag opnieuw gooien zonder de rest van de week kwijt te raken
 - Boodschappenlijst van wat je nog moet halen
-- 45 Nederlandse recepten om mee te beginnen
+- Klik op een gerecht voor de ingredienten en een korte bereiding
+- 47 Nederlandse recepten om mee te beginnen, met bereiding
 
 ## Installeren op mijndomein.nl
 
@@ -145,6 +146,21 @@ komt.
 
 Onderaan het admin paneel staat de **voorraadlijst**: dat zijn de items die
 je te zien krijgt in het venster bij het genereren. Houd die kort.
+
+## Bijwerken naar een nieuwe versie
+
+Draait de app al en haal je nieuwe bestanden binnen? Upload ze, ga daarna
+eenmalig naar `/upgrade.php` en verwijder dat bestand weer.
+
+Die zet ontbrekende kolommen klaar, vult de bereiding bij de meegeleverde
+recepten en voegt nieuwe toe. Je eigen recepten blijven ongemoeid.
+Meegeleverde recepten die uit de lijst zijn gehaald worden op non-actief
+gezet, niet verwijderd, zodat je weekgeschiedenis heel blijft. Via
+Recepten beheren kun je ze weer aanzetten.
+
+Pas je `app.css` of `app.js` aan, verhoog dan ook `CACHE` bovenin
+`sw.js`. De service worker ververst bestanden op de achtergrond, maar een
+nieuwe cachenaam zorgt dat iedereen het meteen ziet.
 
 ## Vereisten
 
