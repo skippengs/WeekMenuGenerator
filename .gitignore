@@ -5,6 +5,9 @@ httpdocs/inc/config.local.php
 # Lokale ontwikkelomgeving (verwijst naar paden op deze pc)
 .claude/
 
+# Werknotities voor Claude; de uitleg voor mensen staat in README.md
+CLAUDE.md
+
 # Editors
 .vscode/
 .idea/
