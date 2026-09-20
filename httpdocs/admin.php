@@ -7,225 +7,15 @@ require __DIR__ . '/inc/db.php';
 require __DIR__ . '/inc/helpers.php';
 require __DIR__ . '/inc/auth.php';
 require __DIR__ . '/inc/settings.php';
+require __DIR__ . '/inc/admin_helpers.php';
 
 startSession();
 requireAdmin();
 
-$pdo    = db();
-$notice = null;
-$error  = null;
+$pdo = db();
 
-/* ------------------------------------------------------------------
- * Ingredienten uit een tekstveld naar de koppeltabel
- * ------------------------------------------------------------------ */
-const UNITS = ['g', 'gram', 'kg', 'ml', 'l', 'liter', 'el', 'tl', 'teen', 'tenen',
-               'blik', 'blikje', 'pak', 'pakje', 'pot', 'bosje', 'snuf', 'plak', 'plakken'];
-
-/**
- * Leest een regel als "400 g gehakt", "2 teen knoflook" of gewoon "ui".
- * Geeft [naam, hoeveelheid, eenheid] terug, of null bij een lege regel.
- */
-function parseIngredientLine(string $line): ?array
-{
-    $line   = trim($line);
-    $amount = null;
-    $unit   = null;
-
-    if ($line === '') {
-        return null;
-    }
-
-    // Begint de regel met een getal? Dan is dat de hoeveelheid.
-    if (preg_match('/^([0-9]+(?:[.,][0-9]+)?)\\s+(.*)$/u', $line, $m)) {
-        $amount = (float)str_replace(',', '.', $m[1]);
-        $line   = trim($m[2]);
-
-        // Staat daar een eenheid achter, dan hoort die er ook bij.
-        $parts = preg_split('/\\s+/u', $line, 2);
-        if ($parts !== false && count($parts) === 2 && in_array(mb_strtolower($parts[0]), UNITS, true)) {
-            $unit = mb_strtolower($parts[0]);
-            $line = trim($parts[1]);
-
-            // Schrijfwijzen gelijktrekken.
-            $same = ['gram' => 'g', 'liter' => 'l', 'tenen' => 'teen',
-                     'blikje' => 'blik', 'pakje' => 'pak', 'plakken' => 'plak'];
-            $unit = $same[$unit] ?? $unit;
-        }
-    }
-
-    $name = mb_strtolower(trim($line));
-    if ($name === '' || mb_strlen($name) > 80) {
-        return null;
-    }
-
-    return [$name, $amount, $unit];
-}
-
-function syncIngredients(PDO $pdo, int $recipeId, string $raw): void
-{
-    // Regel voor regel, niet op komma's: die zitten in "0,5 l melk".
-    $rows = [];
-    foreach (preg_split('/\\r\\n|\\r|\\n/', $raw) ?: [] as $line) {
-        $parsed = parseIngredientLine($line);
-        if ($parsed !== null) {
-            $rows[$parsed[0]] = $parsed;   // zelfde naam twee keer: laatste wint
-        }
-    }
-
-    $pdo->prepare('DELETE FROM {recipe_ingredient} WHERE recipe_id = ?')->execute([$recipeId]);
-
-    if ($rows === []) {
-        return;
-    }
-
-    $find   = $pdo->prepare('SELECT id FROM {ingredient} WHERE name = ?');
-    $create = $pdo->prepare('INSERT INTO {ingredient} (name, category, is_pantry_item) VALUES (?, ?, 0)');
-    $link   = $pdo->prepare(
-        'INSERT IGNORE INTO {recipe_ingredient} (recipe_id, ingredient_id, is_key, amount, unit)
-         VALUES (?, ?, 1, ?, ?)'
-    );
-
-    foreach ($rows as [$name, $amount, $unit]) {
-        $find->execute([$name]);
-        $id = $find->fetchColumn();
-
-        if ($id === false) {
-            $create->execute([$name, 'rest']);
-            $id = $pdo->lastInsertId();
-        }
-
-        $link->execute([$recipeId, (int)$id, $amount, $unit]);
-    }
-}
-
-/* ------------------------------------------------------------------
- * Formulieren afhandelen
- * ------------------------------------------------------------------ */
-if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-
-    if (!checkCsrf($_POST['csrf'] ?? null)) {
-        $error = 'Sessie verlopen. Probeer het opnieuw.';
-    } else {
-        $action = $_POST['action'] ?? '';
-
-        try {
-            if ($action === 'save') {
-                $id          = (int)($_POST['id'] ?? 0);
-                $name        = trim((string)($_POST['name'] ?? ''));
-                $category    = (string)($_POST['category'] ?? 'overig');
-                $effort      = (int)($_POST['effort'] ?? 2);
-                $weekendOnly = isset($_POST['weekend_only']) ? 1 : 0;
-                $makesLeftovers = isset($_POST['makes_leftovers']) ? 1 : 0;
-                $servings    = max(1, min(20, (int)($_POST['servings'] ?? 4)));
-                $isMine      = isset($_POST['is_mine']) ? 1 : 0;
-                $notes       = trim((string)($_POST['notes'] ?? ''));
-                $steps       = trim((string)($_POST['steps'] ?? ''));
-                $url         = trim((string)($_POST['url'] ?? ''));
-
-                if ($name === '') {
-                    throw new RuntimeException('Geef het gerecht een naam.');
-                }
-                if (!isset(CATEGORIES[$category])) {
-                    $category = 'overig';
-                }
-                if ($effort < 1 || $effort > 3) {
-                    $effort = 2;
-                }
-
-                if ($id > 0) {
-                    $pdo->prepare(
-                        'UPDATE {recipe}
-                            SET name = ?, category = ?, effort = ?, weekend_only = ?, makes_leftovers = ?,
-                                servings = ?, notes = ?, steps = ?, url = ?, is_mine = ?
-                          WHERE id = ?'
-                    )->execute([$name, $category, $effort, $weekendOnly, $makesLeftovers, $servings,
-                                $notes ?: null, $steps ?: null, $url ?: null, $isMine, $id]);
-                    $notice = 'Recept bijgewerkt.';
-                } else {
-                    $pdo->prepare(
-                        'INSERT INTO {recipe} (name, category, effort, weekend_only, makes_leftovers, servings, notes, steps, url, is_mine)
-                         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
-                    )->execute([$name, $category, $effort, $weekendOnly, $makesLeftovers, $servings,
-                                $notes ?: null, $steps ?: null, $url ?: null, $isMine]);
-                    $id = (int)$pdo->lastInsertId();
-                    $notice = 'Recept toegevoegd.';
-                }
-
-                syncIngredients($pdo, $id, (string)($_POST['ingredients'] ?? ''));
-
-            } elseif ($action === 'delete') {
-                $pdo->prepare('DELETE FROM {recipe} WHERE id = ?')->execute([(int)$_POST['id']]);
-                $notice = 'Recept verwijderd.';
-
-            } elseif ($action === 'toggle_active') {
-                $pdo->prepare('UPDATE {recipe} SET is_active = 1 - is_active WHERE id = ?')
-                    ->execute([(int)$_POST['id']]);
-                $notice = 'Aan- of uitgezet.';
-
-            } elseif ($action === 'save_settings') {
-                $value = max(1, min(20, (int)($_POST['default_servings'] ?? 3)));
-                setSetting($pdo, SETTING_DEFAULT_SERVINGS, (string)$value);
-                $notice = 'Standaard aantal personen staat nu op ' . $value . '.';
-
-            } elseif ($action === 'save_pantry') {
-                $checked = array_map('intval', (array)($_POST['pantry'] ?? []));
-                $pdo->exec('UPDATE {ingredient} SET is_pantry_item = 0');
-
-                if ($checked !== []) {
-                    $in = implode(',', array_fill(0, count($checked), '?'));
-                    $pdo->prepare("UPDATE {ingredient} SET is_pantry_item = 1 WHERE id IN ($in)")
-                        ->execute($checked);
-                }
-                $notice = 'Voorraadlijst opgeslagen.';
-            }
-        } catch (Throwable $e) {
-            $error = $e->getMessage();
-        }
-    }
-}
-
-/* ------------------------------------------------------------------
- * Gegevens voor de pagina
- * ------------------------------------------------------------------ */
-$editing = null;
-if (isset($_GET['edit'])) {
-    $stmt = $pdo->prepare('SELECT * FROM {recipe} WHERE id = ?');
-    $stmt->execute([(int)$_GET['edit']]);
-    $editing = $stmt->fetch() ?: null;
-
-    if ($editing) {
-        $stmt = $pdo->prepare(
-            'SELECT i.name, ri.amount, ri.unit FROM {recipe_ingredient} ri
-               JOIN {ingredient} i ON i.id = ri.ingredient_id
-              WHERE ri.recipe_id = ?
-              ORDER BY i.name'
-        );
-        $stmt->execute([(int)$editing['id']]);
-
-        // Terug naar de vorm waarin je het intypt: "400 g gehakt".
-        $lines = [];
-        foreach ($stmt as $row) {
-            $amount = '';
-            if ($row['amount'] !== null) {
-                $amount = rtrim(rtrim(number_format((float)$row['amount'], 2, ',', ''), '0'), ',');
-            }
-            $lines[] = trim($amount . ' ' . (string)$row['unit'] . ' ' . $row['name']);
-        }
-        $editing['ingredients'] = implode(PHP_EOL, $lines);
-    }
-}
-
-$recipes = $pdo->query(
-    'SELECT r.*, COUNT(ri.ingredient_id) AS ing_count
-       FROM {recipe} r
-  LEFT JOIN {recipe_ingredient} ri ON ri.recipe_id = r.id
-      GROUP BY r.id
-      ORDER BY r.is_mine DESC, r.name'
-)->fetchAll();
-
-$ingredients = $pdo->query('SELECT id, name, category, is_pantry_item FROM {ingredient} ORDER BY category, name')->fetchAll();
-
-$val = static fn(string $key, $fallback = '') => $editing[$key] ?? $fallback;
+$recipes     = fetchRecipesForAdmin($pdo);
+$ingredients = fetchIngredientsForAdmin($pdo);
 ?>
 <!DOCTYPE html>
 <html lang="nl">
@@ -234,6 +24,9 @@ $val = static fn(string $key, $fallback = '') => $editing[$key] ?? $fallback;
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Recepten beheren</title>
 <link rel="stylesheet" href="assets/app.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css"
+      integrity="sha512-SnH5WK+bZxgPHs44uWIX+LLJAJ9/2PkPKZ5QiAj6Ta86w+fsb2TkcmfRyVX3pBnMFcV7oQPJkl9QevSCWr3W6A=="
+      crossorigin="anonymous" referrerpolicy="no-referrer">
 <link rel="icon" type="image/png" sizes="32x32" href="assets/icon-32.png">
 <link rel="icon" type="image/png" sizes="192x192" href="assets/icon-192.png">
 <link rel="apple-touch-icon" href="assets/icon-180.png">
@@ -244,132 +37,33 @@ $val = static fn(string $key, $fallback = '') => $editing[$key] ?? $fallback;
     <div class="wrap topbar-inner">
         <h1>Recepten beheren</h1>
         <nav class="topnav">
-            <a href="index.php">Weekmenu</a> &nbsp;
-            <a href="logout.php">Uitloggen</a>
+            <a class="icon-btn" href="index.php" title="Naar het weekmenu" aria-label="Naar het weekmenu">
+                <i class="fa-solid fa-house" aria-hidden="true"></i>
+            </a>
+            <a class="icon-btn" href="logout.php" title="Uitloggen" aria-label="Uitloggen">
+                <i class="fa-solid fa-right-from-bracket" aria-hidden="true"></i>
+            </a>
         </nav>
     </div>
 </header>
 
 <main class="wrap">
 
-    <?php if ($notice): ?><div class="alert alert-ok"><?= esc($notice) ?></div><?php endif; ?>
-    <?php if ($error): ?><div class="alert alert-error"><?= esc($error) ?></div><?php endif; ?>
+    <div class="tabs" role="tablist">
+        <button class="tab-btn is-active" type="button" role="tab" data-tab="recepten">Recepten</button>
+        <button class="tab-btn" type="button" role="tab" data-tab="instellingen">Instellingen</button>
+        <button class="tab-btn" type="button" role="tab" data-tab="voorraad">Voorraadlijst</button>
+    </div>
 
-    <div class="admin-grid">
-
-        <!-- formulier ------------------------------------------------ -->
-        <form class="card" method="post" action="admin.php">
-            <h2><?= $editing ? 'Recept bewerken' : 'Nieuw recept' ?></h2>
-
-            <input type="hidden" name="csrf" value="<?= esc(csrfToken()) ?>">
-            <input type="hidden" name="action" value="save">
-            <input type="hidden" name="id" value="<?= (int)$val('id', 0) ?>">
-
-            <div class="field">
-                <label for="f-name">Gerecht</label>
-                <input type="text" id="f-name" name="name" required maxlength="160"
-                       value="<?= esc((string)$val('name')) ?>" placeholder="Bijv. Macaroni met gehakt">
-            </div>
-
-            <div class="field">
-                <label for="f-category">Soort</label>
-                <select id="f-category" name="category">
-                    <?php foreach (CATEGORIES as $key => $label): ?>
-                        <option value="<?= esc($key) ?>" <?= $val('category', 'overig') === $key ? 'selected' : '' ?>>
-                            <?= esc($label) ?>
-                        </option>
-                    <?php endforeach; ?>
-                </select>
-                <p class="field-hint">Van elke soort komt er hoogstens één per week op tafel.</p>
-            </div>
-
-            <div class="field">
-                <label for="f-effort">Hoeveel werk</label>
-                <select id="f-effort" name="effort">
-                    <?php foreach (EFFORTS as $key => $label): ?>
-                        <option value="<?= $key ?>" <?= (int)$val('effort', 2) === $key ? 'selected' : '' ?>>
-                            <?= esc($label) ?>
-                        </option>
-                    <?php endforeach; ?>
-                </select>
-                <p class="field-hint">Uitgebreide gerechten komen vooral in het weekend langs.</p>
-            </div>
-
-            <div class="field">
-                <label for="f-servings">Voor hoeveel personen</label>
-                <input type="number" id="f-servings" name="servings" min="1" max="20"
-                       value="<?= (int)$val('servings', 4) ?>">
-                <p class="field-hint">
-                    Hoort bij de hoeveelheden hieronder. De app rekent zelf om naar
-                    het aantal personen dat je in het weekmenu kiest.
-                </p>
-            </div>
-
-            <div class="field">
-                <label for="f-ingredients">Ingrediënten</label>
-                <textarea id="f-ingredients" name="ingredients" rows="7"
-                          placeholder="400 g gehakt&#10;400 g macaroni&#10;2 ui&#10;100 g kaas"><?= esc((string)$val('ingredients')) ?></textarea>
-                <p class="field-hint">
-                    Eén per regel, hoeveelheid eerst: <code>400 g gehakt</code>,
-                    <code>2 teen knoflook</code>, <code>1 blik tomatenblokjes</code>.
-                    Zonder hoeveelheid mag ook. Alleen de kenmerkende ingrediënten &mdash;
-                    die bepalen of dit gerecht omhoog schuift als je ze in huis hebt.
-                </p>
-            </div>
-
-            <div class="field">
-                <label for="f-steps">Bereiding</label>
-                <textarea id="f-steps" name="steps" rows="7"
-                          placeholder="Kook de aardappelen gaar.&#10;Bak het gehakt rul.&#10;Alles in een schaal, kaas erover."><?= esc((string)$val('steps')) ?></textarea>
-                <p class="field-hint">Eén stap per regel. Verschijnt als genummerde lijst als je op het gerecht klikt.</p>
-            </div>
-
-            <div class="field">
-                <label for="f-notes">Notitie</label>
-                <textarea id="f-notes" name="notes" placeholder="Optioneel"><?= esc((string)$val('notes')) ?></textarea>
-                <p class="field-hint">Korte opmerking, staat onder de naam in het weekmenu.</p>
-            </div>
-
-            <div class="field">
-                <label for="f-url">Link naar recept</label>
-                <input type="url" id="f-url" name="url" maxlength="400"
-                       value="<?= esc((string)$val('url')) ?>" placeholder="https://">
-            </div>
-
-            <div class="field field-check">
-                <input type="checkbox" id="f-weekend" name="weekend_only" value="1"
-                       <?= (int)$val('weekend_only', 0) === 1 ? 'checked' : '' ?>>
-                <label for="f-weekend">Alleen in het weekend</label>
-            </div>
-
-            <div class="field field-check">
-                <input type="checkbox" id="f-leftovers" name="makes_leftovers" value="1"
-                       <?= (int)$val('makes_leftovers', 0) === 1 ? 'checked' : '' ?>>
-                <label for="f-leftovers">Genoeg voor restjes (2 dagen later)</label>
-                <p class="field-hint">
-                    Je kunt dan in het weekmenu zelf een dag twee dagen later
-                    aanwijzen als restjesdag. Die telt niet extra mee op de
-                    boodschappenlijst.
-                </p>
-            </div>
-
-            <div class="field field-check">
-                <input type="checkbox" id="f-mine" name="is_mine" value="1"
-                       <?= (int)$val('is_mine', $editing ? 0 : 1) === 1 ? 'checked' : '' ?>>
-                <label for="f-mine">Eigen recept</label>
-            </div>
-
-            <button class="btn btn-primary" type="submit">
-                <?= $editing ? 'Opslaan' : 'Toevoegen' ?>
-            </button>
-            <?php if ($editing): ?>
-                <a class="btn btn-ghost" href="admin.php">Annuleren</a>
-            <?php endif; ?>
-        </form>
-
-        <!-- lijst ---------------------------------------------------- -->
+    <!-- recepten ------------------------------------------------------ -->
+    <section class="tab-panel" id="tab-recepten" data-tab-panel="recepten">
         <div class="card">
-            <h2><?= count($recipes) ?> recepten</h2>
+            <div class="card-head">
+                <h2 id="recipeCount"><?= count($recipes) ?> recepten</h2>
+                <button class="btn btn-primary" type="button" data-new-recipe>
+                    <i class="fa-solid fa-plus" aria-hidden="true"></i> Nieuw recept
+                </button>
+            </div>
 
             <table class="recipe-table">
                 <thead>
@@ -380,94 +74,166 @@ $val = static fn(string $key, $fallback = '') => $editing[$key] ?? $fallback;
                         <th class="col-actions"></th>
                     </tr>
                 </thead>
-                <tbody>
-                <?php foreach ($recipes as $r): ?>
-                    <tr class="<?= (int)$r['is_active'] === 0 ? 'is-inactive' : '' ?>">
-                        <td>
-                            <?php if ((int)$r['is_mine'] === 1): ?>
-                                <span class="mine-dot" title="Eigen recept"></span>
-                            <?php endif; ?>
-                            <?= esc($r['name']) ?>
-                            <?php if ((int)$r['weekend_only'] === 1): ?>
-                                <span class="chip chip-soft">weekend</span>
-                            <?php endif; ?>
-                            <?php if ((int)$r['makes_leftovers'] === 1): ?>
-                                <span class="chip chip-soft">restjes</span>
-                            <?php endif; ?>
-                        </td>
-                        <td class="col-hide"><?= esc(CATEGORIES[$r['category']] ?? $r['category']) ?></td>
-                        <td class="col-hide"><?= (int)$r['effort'] ?></td>
-                        <td class="col-actions">
-                            <a class="linkbtn" href="admin.php?edit=<?= (int)$r['id'] ?>">bewerk</a>
-
-                            <form method="post" action="admin.php" style="display:inline">
-                                <input type="hidden" name="csrf" value="<?= esc(csrfToken()) ?>">
-                                <input type="hidden" name="action" value="toggle_active">
-                                <input type="hidden" name="id" value="<?= (int)$r['id'] ?>">
-                                <button class="linkbtn" type="submit">
-                                    <?= (int)$r['is_active'] === 1 ? 'pauzeer' : 'activeer' ?>
-                                </button>
-                            </form>
-
-                            <form method="post" action="admin.php" style="display:inline"
-                                  onsubmit="return confirm('<?= esc($r['name']) ?> verwijderen?')">
-                                <input type="hidden" name="csrf" value="<?= esc(csrfToken()) ?>">
-                                <input type="hidden" name="action" value="delete">
-                                <input type="hidden" name="id" value="<?= (int)$r['id'] ?>">
-                                <button class="linkbtn linkbtn-danger" type="submit">wis</button>
-                            </form>
-                        </td>
-                    </tr>
-                <?php endforeach; ?>
+                <tbody id="recipeTableBody">
+                    <?php foreach ($recipes as $r): ?>
+                        <?= renderRecipeRow($r) ?>
+                    <?php endforeach; ?>
                 </tbody>
             </table>
         </div>
-    </div>
+    </section>
 
-    <!-- instellingen --------------------------------------------------- -->
-    <form class="card" method="post" action="admin.php" style="margin-bottom:24px">
-        <h2>Instellingen</h2>
+    <!-- instellingen ---------------------------------------------------- -->
+    <section class="tab-panel" id="tab-instellingen" data-tab-panel="instellingen" hidden>
+        <form class="card" id="settingsForm">
+            <h2>Instellingen</h2>
 
-        <input type="hidden" name="csrf" value="<?= esc(csrfToken()) ?>">
-        <input type="hidden" name="action" value="save_settings">
+            <div class="field">
+                <label for="f-default-servings">Standaard aantal personen</label>
+                <input type="number" id="f-default-servings" name="default_servings"
+                       min="1" max="20" value="<?= (int)defaultServings($pdo) ?>">
+                <p class="field-hint">
+                    Hiermee begint elke dag in een nieuw weekmenu. Eet er een keer
+                    iemand mee, dan pas je die dag los aan in het weekmenu zelf.
+                </p>
+            </div>
 
-        <div class="field">
-            <label for="f-default-servings">Standaard aantal personen</label>
-            <input type="number" id="f-default-servings" name="default_servings"
-                   min="1" max="20" value="<?= (int)defaultServings($pdo) ?>">
-            <p class="field-hint">
-                Hiermee begint elke dag in een nieuw weekmenu. Eet er een keer
-                iemand mee, dan pas je die dag los aan in het weekmenu zelf.
-            </p>
-        </div>
-
-        <button class="btn btn-primary" type="submit">Opslaan</button>
-    </form>
+            <button class="btn btn-primary" type="submit">Opslaan</button>
+        </form>
+    </section>
 
     <!-- voorraadlijst ------------------------------------------------ -->
-    <form class="card" method="post" action="admin.php" style="margin-bottom:40px">
-        <h2>Voorraadlijst</h2>
-        <p class="hint" style="margin-top:-10px">
-            Deze items verschijnen in het venster dat opent als je een weekmenu genereert.
-            Houd het kort: alleen dingen waarvan je echt weet of ze in huis zijn.
-        </p>
+    <section class="tab-panel" id="tab-voorraad" data-tab-panel="voorraad" hidden>
+        <form class="card" id="pantryForm">
+            <h2>Voorraadlijst</h2>
+            <p class="hint" style="margin-top:-10px">
+                Deze items verschijnen in het venster dat opent als je een weekmenu genereert.
+                Houd het kort: alleen dingen waarvan je echt weet of ze in huis zijn.
+            </p>
 
-        <input type="hidden" name="csrf" value="<?= esc(csrfToken()) ?>">
-        <input type="hidden" name="action" value="save_pantry">
+            <div class="pantry-items" id="pantryItemsList" style="margin-bottom:18px">
+                <?= renderPantryItems($ingredients) ?>
+            </div>
 
-        <div class="pantry-items" style="margin-bottom:18px">
-            <?php foreach ($ingredients as $ing): ?>
-                <label class="pantry-item">
-                    <input type="checkbox" name="pantry[]" value="<?= (int)$ing['id'] ?>"
-                           <?= (int)$ing['is_pantry_item'] === 1 ? 'checked' : '' ?>>
-                    <span><?= esc($ing['name']) ?></span>
-                </label>
-            <?php endforeach; ?>
-        </div>
-
-        <button class="btn btn-primary" type="submit">Voorraadlijst opslaan</button>
-    </form>
+            <button class="btn btn-primary" type="submit">Voorraadlijst opslaan</button>
+        </form>
+    </section>
 
 </main>
+
+<!-- Receptvenster (nieuw / bewerken) ------------------------------- -->
+<div class="modal" id="recipeEditModal" hidden>
+    <div class="modal-backdrop" data-close-recipe-edit></div>
+
+    <div class="modal-card modal-card-editor" role="dialog" aria-modal="true" aria-labelledby="recipeEditTitle">
+        <form id="recipeEditForm">
+            <header class="modal-head">
+                <h2 id="recipeEditTitle">Nieuw recept</h2>
+                <button class="modal-x" type="button" data-close-recipe-edit aria-label="Sluiten">&times;</button>
+            </header>
+
+            <div class="modal-body">
+                <input type="hidden" name="id" value="0">
+
+                <div class="field">
+                    <label for="f-name">Gerecht</label>
+                    <input type="text" id="f-name" name="name" required maxlength="160"
+                           placeholder="Bijv. Macaroni met gehakt">
+                </div>
+
+                <div class="field">
+                    <label for="f-category">Soort</label>
+                    <select id="f-category" name="category">
+                        <?php foreach (CATEGORIES as $key => $label): ?>
+                            <option value="<?= esc($key) ?>"><?= esc($label) ?></option>
+                        <?php endforeach; ?>
+                    </select>
+                    <p class="field-hint">Van elke soort komt er hoogstens één per week op tafel.</p>
+                </div>
+
+                <div class="field">
+                    <label for="f-effort">Hoeveel werk</label>
+                    <select id="f-effort" name="effort">
+                        <?php foreach (EFFORTS as $key => $label): ?>
+                            <option value="<?= $key ?>"><?= esc($label) ?></option>
+                        <?php endforeach; ?>
+                    </select>
+                    <p class="field-hint">Uitgebreide gerechten komen vooral in het weekend langs.</p>
+                </div>
+
+                <div class="field">
+                    <label for="f-servings">Voor hoeveel personen</label>
+                    <input type="number" id="f-servings" name="servings" min="1" max="20" value="4">
+                    <p class="field-hint">
+                        Hoort bij de hoeveelheden hieronder. De app rekent zelf om naar
+                        het aantal personen dat je in het weekmenu kiest.
+                    </p>
+                </div>
+
+                <div class="field">
+                    <label for="f-ingredients">Ingrediënten</label>
+                    <textarea id="f-ingredients" name="ingredients" rows="7"
+                              placeholder="400 g gehakt&#10;400 g macaroni&#10;2 ui&#10;100 g kaas"></textarea>
+                    <p class="field-hint">
+                        Eén per regel, hoeveelheid eerst: <code>400 g gehakt</code>,
+                        <code>2 teen knoflook</code>, <code>1 blik tomatenblokjes</code>.
+                        Zonder hoeveelheid mag ook. Alleen de kenmerkende ingrediënten &mdash;
+                        die bepalen of dit gerecht omhoog schuift als je ze in huis hebt.
+                    </p>
+                </div>
+
+                <div class="field">
+                    <label for="f-steps">Bereiding</label>
+                    <textarea id="f-steps" name="steps" rows="7"
+                              placeholder="Kook de aardappelen gaar.&#10;Bak het gehakt rul.&#10;Alles in een schaal, kaas erover."></textarea>
+                    <p class="field-hint">Eén stap per regel. Verschijnt als genummerde lijst als je op het gerecht klikt.</p>
+                </div>
+
+                <div class="field">
+                    <label for="f-notes">Notitie</label>
+                    <textarea id="f-notes" name="notes" placeholder="Optioneel"></textarea>
+                    <p class="field-hint">Korte opmerking, staat onder de naam in het weekmenu.</p>
+                </div>
+
+                <div class="field">
+                    <label for="f-url">Link naar recept</label>
+                    <input type="url" id="f-url" name="url" maxlength="400" placeholder="https://">
+                </div>
+
+                <div class="field field-check">
+                    <input type="checkbox" id="f-weekend" name="weekend_only" value="1">
+                    <label for="f-weekend">Alleen in het weekend</label>
+                </div>
+
+                <div class="field field-check">
+                    <input type="checkbox" id="f-leftovers" name="makes_leftovers" value="1">
+                    <label for="f-leftovers">Genoeg voor restjes (2 dagen later)</label>
+                    <p class="field-hint">
+                        Je kunt dan in het weekmenu zelf een dag twee dagen later
+                        aanwijzen als restjesdag. Die telt niet extra mee op de
+                        boodschappenlijst.
+                    </p>
+                </div>
+
+                <div class="field field-check">
+                    <input type="checkbox" id="f-mine" name="is_mine" value="1" checked>
+                    <label for="f-mine">Eigen recept</label>
+                </div>
+            </div>
+
+            <footer class="modal-foot">
+                <button class="btn btn-ghost" type="button" data-close-recipe-edit>Annuleren</button>
+                <button class="btn btn-primary" type="submit" id="recipeEditSubmit">Toevoegen</button>
+            </footer>
+        </form>
+    </div>
+</div>
+
+<script>
+    window.WEEKMENU = {
+        csrf: <?= json_encode(csrfToken()) ?>
+    };
+</script>
+<script src="assets/app.js"></script>
 </body>
 </html>

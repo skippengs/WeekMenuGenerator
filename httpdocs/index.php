@@ -87,6 +87,9 @@ $recipeCount = (int)$pdo->query('SELECT COUNT(*) FROM {recipe} WHERE is_active =
 <title>Weekmenu</title>
 <meta name="theme-color" content="#1f6f4f">
 <link rel="stylesheet" href="assets/app.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css"
+      integrity="sha512-SnH5WK+bZxgPHs44uWIX+LLJAJ9/2PkPKZ5QiAj6Ta86w+fsb2TkcmfRyVX3pBnMFcV7oQPJkl9QevSCWr3W6A=="
+      crossorigin="anonymous" referrerpolicy="no-referrer">
 <link rel="manifest" href="manifest.json">
 
 <link rel="icon" type="image/png" sizes="32x32" href="assets/icon-32.png">
@@ -103,10 +106,16 @@ $recipeCount = (int)$pdo->query('SELECT COUNT(*) FROM {recipe} WHERE is_active =
         <h1>Weekmenu</h1>
         <nav class="topnav">
             <?php if ($mayEdit): ?>
-                <a href="admin.php">Recepten beheren</a>
-                <a href="logout.php">Uitloggen</a>
+                <a class="icon-btn" href="admin.php" title="Recepten beheren" aria-label="Recepten beheren">
+                    <i class="fa-solid fa-pencil" aria-hidden="true"></i>
+                </a>
+                <a class="icon-btn" href="logout.php" title="Uitloggen" aria-label="Uitloggen">
+                    <i class="fa-solid fa-right-from-bracket" aria-hidden="true"></i>
+                </a>
             <?php else: ?>
-                <a href="login.php">Inloggen</a>
+                <a class="icon-btn" href="login.php" title="Inloggen" aria-label="Inloggen">
+                    <i class="fa-solid fa-user" aria-hidden="true"></i>
+                </a>
             <?php endif; ?>
         </nav>
     </div>

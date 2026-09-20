@@ -80,6 +80,12 @@ a { color: var(--accent); }
     letter-spacing: -.01em;
 }
 
+.topnav {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
 .topnav a {
     color: var(--text-soft);
     text-decoration: none;
@@ -87,6 +93,20 @@ a { color: var(--accent); }
 }
 
 .topnav a:hover { color: var(--accent); }
+
+.icon-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 38px;
+    height: 38px;
+    border-radius: 50%;
+    background: none;
+    font-size: 16px;
+    transition: background .12s, color .12s;
+}
+
+.icon-btn:hover { background: var(--surface-alt); color: var(--accent); }
 
 /* ---------- weeknavigatie ---------- */
 
@@ -501,13 +521,43 @@ body.modal-open { overflow: hidden; }
 
 /* ---------- admin ---------- */
 
-.admin-grid {
-    display: grid;
-    grid-template-columns: 340px 1fr;
-    gap: 24px;
-    align-items: start;
-    margin-bottom: 40px;
+.tabs {
+    display: flex;
+    gap: 4px;
+    margin-bottom: 20px;
+    border-bottom: 1px solid var(--border);
 }
+
+.tab-btn {
+    padding: 10px 16px;
+    margin-bottom: -1px;
+    border: 0;
+    border-bottom: 2px solid transparent;
+    background: none;
+    color: var(--text-soft);
+    font: inherit;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.tab-btn:hover { color: var(--accent); }
+
+.tab-btn.is-active { color: var(--accent); border-bottom-color: var(--accent); }
+
+.tab-panel { margin-bottom: 40px; }
+
+.tab-panel[hidden] { display: none; }
+
+.card-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 16px;
+}
+
+.card-head h2 { margin: 0; }
 
 .card {
     padding: 20px;
@@ -706,6 +756,23 @@ code {
 /* ---------- receptvenster ---------- */
 
 .modal-card-recipe { max-width: 540px; }
+
+/* ---------- receptformulier (nieuw / bewerken) ---------- */
+
+.modal-card-editor { max-width: 640px; }
+
+/* Het formulier is de enige child van .modal-card en moet daarom zelf
+   ook een flex-kolom zijn, anders werkt de scrollbare .modal-body
+   hierbinnen niet: dan knipt .modal-card (overflow: hidden) de rest
+   van het formulier gewoon weg in plaats van hem scrollbaar te maken. */
+.modal-card-editor form {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    flex: 1;
+}
+
+.modal-card-editor .modal-body { padding-top: 14px; }
 
 .modal-card-recipe .modal-body { padding-top: 14px; }
 

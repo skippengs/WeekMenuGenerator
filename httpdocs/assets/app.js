@@ -440,6 +440,245 @@
 
     renderShopping();
 
+    /* ---------- admin: tabbladen ---------- */
+
+    var tabButtons = document.querySelectorAll('.tab-btn[data-tab]');
+
+    if (tabButtons.length) {
+        tabButtons.forEach(function (btn) {
+            btn.addEventListener('click', function () {
+                var name = btn.getAttribute('data-tab');
+
+                tabButtons.forEach(function (b) {
+                    b.classList.toggle('is-active', b === btn);
+                });
+
+                document.querySelectorAll('[data-tab-panel]').forEach(function (panel) {
+                    panel.hidden = panel.getAttribute('data-tab-panel') !== name;
+                });
+            });
+        });
+    }
+
+    /* ---------- admin: recept toevoegen / bewerken ---------- */
+
+    var recipeEditModal = document.getElementById('recipeEditModal');
+    var recipeEditForm  = document.getElementById('recipeEditForm');
+
+    function openRecipeEdit(data) {
+        if (!recipeEditModal || !recipeEditForm) { return; }
+
+        var f = recipeEditForm.elements;
+
+        document.getElementById('recipeEditTitle').textContent = data ? 'Recept bewerken' : 'Nieuw recept';
+        document.getElementById('recipeEditSubmit').textContent = data ? 'Opslaan' : 'Toevoegen';
+
+        recipeEditForm.reset();
+        f.id.value              = data && data.id ? data.id : 0;
+        f.name.value            = data ? data.name : '';
+        f.category.value        = data ? data.category : 'overig';
+        f.effort.value          = data ? data.effort : 2;
+        f.servings.value        = data ? data.servings : 4;
+        f.ingredients.value     = data ? data.ingredients : '';
+        f.steps.value           = data ? data.steps : '';
+        f.notes.value           = data ? data.notes : '';
+        f.url.value              = data ? data.url : '';
+        f.weekend_only.checked     = !!(data && data.weekend_only);
+        f.makes_leftovers.checked  = !!(data && data.makes_leftovers);
+        f.is_mine.checked          = data ? !!data.is_mine : true;
+
+        recipeEditModal.hidden = false;
+        document.body.classList.add('modal-open');
+
+        var first = document.getElementById('f-name');
+        if (first) { first.focus(); }
+    }
+
+    function closeRecipeEdit() {
+        if (!recipeEditModal) { return; }
+        recipeEditModal.hidden = true;
+        document.body.classList.remove('modal-open');
+    }
+
+    /** Nieuwe tabel- en voorraadinhoud in de admin-pagina zetten, zonder te herladen. */
+    function applyRecipeTable(data) {
+        var body = document.getElementById('recipeTableBody');
+        if (body && data.recipe_table !== undefined) { body.innerHTML = data.recipe_table; }
+
+        var count = document.getElementById('recipeCount');
+        if (count && data.recipe_count !== undefined) { count.textContent = data.recipe_count + ' recepten'; }
+
+        var pantry = document.getElementById('pantryItemsList');
+        if (pantry && data.pantry_list !== undefined) { pantry.innerHTML = data.pantry_list; }
+    }
+
+    document.addEventListener('click', function (e) {
+        if (e.target.closest('[data-new-recipe]')) {
+            e.preventDefault();
+            openRecipeEdit(null);
+        }
+        if (e.target.closest('[data-close-recipe-edit]')) {
+            e.preventDefault();
+            closeRecipeEdit();
+        }
+    });
+
+    document.addEventListener('keydown', function (e) {
+        if (e.key === 'Escape' && recipeEditModal && !recipeEditModal.hidden) {
+            closeRecipeEdit();
+        }
+    });
+
+    document.addEventListener('click', function (e) {
+        var editBtn = e.target.closest('[data-edit]');
+        if (!editBtn) { return; }
+
+        e.preventDefault();
+
+        fetch('api/admin_recipe_edit.php?id=' + encodeURIComponent(editBtn.getAttribute('data-edit')))
+            .then(function (res) { return res.json(); })
+            .then(function (data) {
+                if (data.error) { throw new Error(data.error); }
+                openRecipeEdit(data);
+            })
+            .catch(function (err) { toast(err.message, true); });
+    });
+
+    if (recipeEditForm) {
+        recipeEditForm.addEventListener('submit', function (e) {
+            e.preventDefault();
+
+            var submitBtn = document.getElementById('recipeEditSubmit');
+            var original  = submitBtn.textContent;
+            submitBtn.disabled = true;
+            submitBtn.textContent = 'Bezig...';
+
+            var f = recipeEditForm.elements;
+
+            postJson('api/admin_save.php', {
+                csrf: cfg.csrf,
+                id: parseInt(f.id.value, 10) || 0,
+                name: f.name.value,
+                category: f.category.value,
+                effort: parseInt(f.effort.value, 10),
+                servings: parseInt(f.servings.value, 10),
+                ingredients: f.ingredients.value,
+                steps: f.steps.value,
+                notes: f.notes.value,
+                url: f.url.value,
+                weekend_only: f.weekend_only.checked,
+                makes_leftovers: f.makes_leftovers.checked,
+                is_mine: f.is_mine.checked
+            }).then(function (data) {
+                applyRecipeTable(data);
+                closeRecipeEdit();
+                toast(data.notice);
+            }).catch(function (err) {
+                toast(err.message, true);
+            }).then(function () {
+                submitBtn.disabled = false;
+                submitBtn.textContent = original;
+            });
+        });
+    }
+
+    document.addEventListener('click', function (e) {
+        var toggleBtn = e.target.closest('[data-toggle]');
+        if (toggleBtn) {
+            e.preventDefault();
+
+            toggleBtn.disabled = true;
+
+            postJson('api/admin_toggle.php', { csrf: cfg.csrf, id: parseInt(toggleBtn.getAttribute('data-toggle'), 10) })
+                .then(function (data) {
+                    var row = document.querySelector('.recipe-table tr[data-id="' + data.id + '"]');
+                    if (row) { row.classList.toggle('is-inactive', data.is_active === 0); }
+
+                    toggleBtn.disabled = false;
+                    toggleBtn.textContent = data.is_active === 1 ? 'pauzeer' : 'activeer';
+                    toast(data.notice);
+                })
+                .catch(function (err) {
+                    toggleBtn.disabled = false;
+                    toast(err.message, true);
+                });
+            return;
+        }
+
+        var deleteBtn = e.target.closest('[data-delete]');
+        if (deleteBtn) {
+            e.preventDefault();
+
+            if (!confirm(deleteBtn.getAttribute('data-name') + ' verwijderen?')) { return; }
+
+            deleteBtn.disabled = true;
+
+            postJson('api/admin_delete.php', { csrf: cfg.csrf, id: parseInt(deleteBtn.getAttribute('data-delete'), 10) })
+                .then(function (data) {
+                    applyRecipeTable(data);
+                    toast(data.notice);
+                })
+                .catch(function (err) {
+                    deleteBtn.disabled = false;
+                    toast(err.message, true);
+                });
+        }
+    });
+
+    /* ---------- admin: instellingen ---------- */
+
+    var settingsForm = document.getElementById('settingsForm');
+
+    if (settingsForm) {
+        settingsForm.addEventListener('submit', function (e) {
+            e.preventDefault();
+
+            var btn = settingsForm.querySelector('button[type="submit"]');
+            btn.disabled = true;
+
+            postJson('api/admin_settings.php', {
+                csrf: cfg.csrf,
+                default_servings: parseInt(settingsForm.elements.default_servings.value, 10)
+            }).then(function (data) {
+                settingsForm.elements.default_servings.value = data.value;
+                toast(data.notice);
+            }).catch(function (err) {
+                toast(err.message, true);
+            }).then(function () {
+                btn.disabled = false;
+            });
+        });
+    }
+
+    /* ---------- admin: voorraadlijst ---------- */
+
+    var pantryForm = document.getElementById('pantryForm');
+
+    if (pantryForm) {
+        pantryForm.addEventListener('submit', function (e) {
+            e.preventDefault();
+
+            var btn = pantryForm.querySelector('button[type="submit"]');
+            btn.disabled = true;
+
+            var checked = Array.prototype.map.call(
+                pantryForm.querySelectorAll('input[name="pantry[]"]:checked'),
+                function (cb) { return parseInt(cb.value, 10); }
+            );
+
+            postJson('api/admin_pantry.php', { csrf: cfg.csrf, pantry: checked })
+                .then(function (data) {
+                    toast(data.notice);
+                })
+                .catch(function (err) {
+                    toast(err.message, true);
+                })
+                .then(function () {
+                    btn.disabled = false;
+                });
+        });
+    }
+
     /* ---------- week weer van het slot ---------- */
 
     document.addEventListener('click', function (e) {
