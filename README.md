@@ -12,6 +12,7 @@ wordt overgeslagen. Draait op gewone PHP-webhosting met MySQL.
 - Boodschappenlijst van wat je nog moet halen
 - Klik op een gerecht voor de ingredienten, hoeveelheden en een korte bereiding
 - Aantal personen per dag; de boodschappenlijst telt dat vanzelf op
+- Recept genoeg voor twee dagen? Zet "restjes" aan de knop, twee dagen later
 - 47 Nederlandse recepten om mee te beginnen, met bereiding
 - Kijken mag iedereen, wijzigen alleen na inloggen
 - Boodschappen afvinken wordt per week bewaard, dus op elk apparaat gelijk
@@ -45,12 +46,21 @@ httpdocs/
 ├── admin.php
 ├── login.php
 ├── logout.php
+├── bring.php
+├── bring-export.php
 ├── install.php      ← weghalen na stap 4
 ├── manifest.json
+├── sw.js
 ├── .htaccess
 ├── api/
 │   ├── generate.php
-│   └── reroll.php
+│   ├── reroll.php
+│   ├── leftover.php
+│   ├── servings.php
+│   ├── check.php
+│   ├── lock.php
+│   ├── recipe.php
+│   └── admin_*.php
 ├── assets/
 │   ├── app.css
 │   └── app.js
@@ -60,7 +70,9 @@ httpdocs/
     ├── db.php
     ├── auth.php
     ├── helpers.php
+    ├── settings.php
     ├── generator.php
+    ├── admin_helpers.php
     └── seed_data.php
 ```
 
@@ -81,7 +93,7 @@ ook voor de foreign keys, want die namen moeten binnen de hele database
 uniek zijn.
 
 De installer test eerst of de verbinding werkt, schrijft de gegevens naar
-`inc/config.local.php`, maakt de tabellen aan en zet er 45 recepten in.
+`inc/config.local.php`, maakt de tabellen aan en zet er 47 recepten in.
 Je hoeft dus zelf geen enkel bestand te bewerken.
 
 ### 5. install.php weghalen
@@ -146,10 +158,28 @@ Via `/admin.php`. Bij **Ingrediënten** vul je alleen de kenmerkende dingen
 in, gescheiden door komma's — dus `gehakt, macaroni, ui, kaas` en niet ook
 nog peper, zout en olie. Die lijst bepaalt twee dingen: of het recept
 omhoog schuift als je iets in huis hebt, en wat er op de boodschappenlijst
-komt.
+komt. Tijdens het typen krijg je suggesties van ingrediënten die al
+bestaan, zodat "ui" en "uien" niet als twee losse dingen op de
+boodschappenlijst belanden.
 
 Onderaan het admin paneel staat de **voorraadlijst**: dat zijn de items die
 je te zien krijgt in het venster bij het genereren. Houd die kort.
+
+Vink je bij een recept **"Genoeg voor restjes"** aan, dan verschijnt in het
+weekmenu twee dagen later een knop om die dag zonder koken over te slaan.
+
+## Restjes / dubbele kookdag
+
+Kookte je maandag iets dat ook voor dinsdag genoeg is? Zet bij dat recept
+in Recepten beheren **"Genoeg voor restjes (2 dagen later)"** aan. Twee
+dagen na zo'n gerecht verschijnt in het weekmenu de knop **"Restjes van
+&lt;dag&gt;"**. Klik je erop, dan verschijnt op die dag geen nieuw gerecht:
+je eet gewoon door van wat er al was, dus die dag telt ook niet extra mee
+op de boodschappenlijst.
+
+Dit gaat altijd met de hand — de generator plant nooit uit zichzelf een
+restjesdag in. Wil je het toch los weer maken, klik dan nogmaals op de
+(actief getoonde) knop.
 
 ## Wie mag wat
 
