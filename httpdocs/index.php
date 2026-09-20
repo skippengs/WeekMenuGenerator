@@ -36,9 +36,7 @@ if ($week !== null) {
 
         if ($d['id'] !== null && empty($d['is_leftover']) && !empty($d['makes_leftovers'])) {
             $target = leftoverTargetDay($di);
-            // Alleen voorstellen op een dag die nog leeg is: staat er al
-            // een eigen gerecht gepland, dan zou aanklikken dat overschrijven.
-            if ($target !== null && ($week['days'][$target]['id'] ?? null) === null) {
+            if ($target !== null && empty($week['days'][$target]['is_leftover'])) {
                 $leftoverSuggestion[$target] = ['source_day' => $di, 'name' => $d['name']];
             }
         }
