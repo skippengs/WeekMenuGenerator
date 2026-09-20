@@ -8,7 +8,7 @@
  * mensen de oude bestanden houden.
  */
 
-const CACHE = 'weekmenu-v9';
+const CACHE = 'weekmenu-v9.1';
 
 const SHELL = [
     'assets/app.css',
