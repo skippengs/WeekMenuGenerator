@@ -610,6 +610,56 @@ body.modal-open { overflow: hidden; }
 .field-check input { width: 16px; height: 16px; accent-color: var(--accent); }
 .field-check label { margin: 0; font-weight: 500; color: var(--text); }
 
+/* ---------- ingrediënten: aanvullen tijdens typen ---------- */
+
+.ingredient-input-wrap { position: relative; }
+
+.ingredient-suggest {
+    position: absolute;
+    z-index: 60;
+    left: 0;
+    right: 0;
+    top: 100%;
+    margin: 2px 0 0;
+    padding: 4px;
+    list-style: none;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 9px;
+    box-shadow: var(--shadow);
+    max-height: 180px;
+    overflow-y: auto;
+}
+
+.ingredient-suggest[hidden] { display: none; }
+
+.ingredient-suggest li {
+    padding: 6px 9px;
+    border-radius: 6px;
+    font-size: 14px;
+    cursor: pointer;
+}
+
+.ingredient-suggest li:hover,
+.ingredient-suggest li.is-active { background: var(--surface-alt); }
+
+/* ---------- ingrediënten samenvoegen ---------- */
+
+.ingredient-merge {
+    display: flex;
+    align-items: flex-end;
+    gap: 14px;
+}
+
+.ingredient-merge .field { flex: 1; margin-bottom: 0; }
+
+.ingredient-merge-arrow { color: var(--text-soft); padding-bottom: 12px; }
+
+@media (max-width: 640px) {
+    .ingredient-merge { flex-direction: column; align-items: stretch; gap: 10px; }
+    .ingredient-merge-arrow { display: none; }
+}
+
 .recipe-table { width: 100%; border-collapse: collapse; font-size: 14px; }
 
 .recipe-table th {

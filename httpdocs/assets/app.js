@@ -468,6 +468,8 @@
     function openRecipeEdit(data) {
         if (!recipeEditModal || !recipeEditForm) { return; }
 
+        hideIngredientSuggest();
+
         var f = recipeEditForm.elements;
 
         document.getElementById('recipeEditTitle').textContent = data ? 'Recept bewerken' : 'Nieuw recept';
@@ -498,10 +500,109 @@
         if (!recipeEditModal) { return; }
         recipeEditModal.hidden = true;
         document.body.classList.remove('modal-open');
+        hideIngredientSuggest();
     }
 
-    /** Nieuwe tabel- en voorraadinhoud in de admin-pagina zetten, zonder te herladen. */
-    function applyRecipeTable(data) {
+    /* ---------- admin: ingrediënten aanvullen tijdens typen ---------- */
+
+    /*
+     * Voorkomt dat "ui", "uien" en "rode ui" drie aparte rijen in de
+     * ingredient-tabel worden: terwijl je typt zoeken we in de namen die
+     * er al zijn en bied je die aan in plaats van dat er een nieuwe
+     * variant ontstaat. Alleen de naam in de regel wordt vervangen, de
+     * hoeveelheid en eenheid ervoor blijven staan. Hoe dat stukje ervoor
+     * herkend wordt volgt dezelfde regels als parseIngredientLine() in
+     * inc/admin_helpers.php — verander die niet zonder dit ook aan te
+     * passen.
+     */
+
+    var ingredientsField  = document.getElementById('f-ingredients');
+    var ingredientSuggest = document.getElementById('ingredientSuggest');
+
+    function splitIngredientLine(line) {
+        var m = line.match(/^(\s*[0-9]+(?:[.,][0-9]+)?\s+)([\s\S]*)$/);
+        if (!m) { return { prefix: '', name: line }; }
+
+        var rest  = m[2];
+        var parts = rest.match(/^(\S+)(\s+)([\s\S]*)$/);
+
+        if (parts && (cfg.ingredientUnits || []).indexOf(parts[1].toLowerCase()) !== -1) {
+            return { prefix: m[1] + parts[1] + parts[2], name: parts[3] };
+        }
+        return { prefix: m[1], name: rest };
+    }
+
+    function currentLine(textarea) {
+        var value = textarea.value;
+        var pos   = textarea.selectionStart;
+        var start = value.lastIndexOf('\n', pos - 1) + 1;
+        var end   = value.indexOf('\n', pos);
+        if (end === -1) { end = value.length; }
+        return { start: start, end: end, text: value.slice(start, end) };
+    }
+
+    function hideIngredientSuggest() {
+        if (!ingredientSuggest) { return; }
+        ingredientSuggest.hidden = true;
+        ingredientSuggest.innerHTML = '';
+    }
+
+    function showIngredientSuggest(names, onPick) {
+        ingredientSuggest.innerHTML = '';
+        names.forEach(function (name) {
+            var li = document.createElement('li');
+            li.textContent = name;
+            li.addEventListener('mousedown', function (e) {
+                // mousedown, niet click: anders is de textarea al blurred
+                // (en de lijst dus al weg) voordat de klik aankomt.
+                e.preventDefault();
+                onPick(name);
+            });
+            ingredientSuggest.appendChild(li);
+        });
+        ingredientSuggest.hidden = names.length === 0;
+    }
+
+    if (ingredientsField && ingredientSuggest) {
+        ingredientsField.addEventListener('input', function () {
+            var line  = currentLine(ingredientsField);
+            var split = splitIngredientLine(line.text);
+            var typed = split.name.trim().toLowerCase();
+
+            if (typed.length < 2) {
+                hideIngredientSuggest();
+                return;
+            }
+
+            var names = (cfg.ingredientNames || []).filter(function (name) {
+                return name.toLowerCase().indexOf(typed) !== -1;
+            }).slice(0, 6);
+
+            if (!names.length) {
+                hideIngredientSuggest();
+                return;
+            }
+
+            showIngredientSuggest(names, function (chosen) {
+                var value   = ingredientsField.value;
+                var newLine = split.prefix + chosen;
+
+                ingredientsField.value = value.slice(0, line.start) + newLine + value.slice(line.end);
+                var caret = line.start + newLine.length;
+                ingredientsField.setSelectionRange(caret, caret);
+                ingredientsField.focus();
+                hideIngredientSuggest();
+            });
+        });
+
+        ingredientsField.addEventListener('blur', hideIngredientSuggest);
+        ingredientsField.addEventListener('keydown', function (e) {
+            if (e.key === 'Escape') { hideIngredientSuggest(); }
+        });
+    }
+
+    /** Nieuwe tabel-, voorraad- en ingrediënteninhoud in de admin-pagina zetten, zonder te herladen. */
+    function applyAdminData(data) {
         var body = document.getElementById('recipeTableBody');
         if (body && data.recipe_table !== undefined) { body.innerHTML = data.recipe_table; }
 
@@ -510,6 +611,18 @@
 
         var pantry = document.getElementById('pantryItemsList');
         if (pantry && data.pantry_list !== undefined) { pantry.innerHTML = data.pantry_list; }
+
+        if (data.ingredient_options !== undefined) {
+            ['f-merge-from', 'f-merge-into'].forEach(function (id) {
+                var select = document.getElementById(id);
+                if (!select) { return; }
+                var current = select.value;
+                select.innerHTML = '<option value="">Kies een ingrediënt...</option>' + data.ingredient_options;
+                select.value = current;
+            });
+        }
+
+        if (data.ingredient_names !== undefined) { cfg.ingredientNames = data.ingredient_names; }
     }
 
     document.addEventListener('click', function (e) {
@@ -570,7 +683,7 @@
                 makes_leftovers: f.makes_leftovers.checked,
                 is_mine: f.is_mine.checked
             }).then(function (data) {
-                applyRecipeTable(data);
+                applyAdminData(data);
                 closeRecipeEdit();
                 toast(data.notice);
             }).catch(function (err) {
@@ -615,7 +728,7 @@
 
             postJson('api/admin_delete.php', { csrf: cfg.csrf, id: parseInt(deleteBtn.getAttribute('data-delete'), 10) })
                 .then(function (data) {
-                    applyRecipeTable(data);
+                    applyAdminData(data);
                     toast(data.notice);
                 })
                 .catch(function (err) {
@@ -668,6 +781,42 @@
 
             postJson('api/admin_pantry.php', { csrf: cfg.csrf, pantry: checked })
                 .then(function (data) {
+                    toast(data.notice);
+                })
+                .catch(function (err) {
+                    toast(err.message, true);
+                })
+                .then(function () {
+                    btn.disabled = false;
+                });
+        });
+    }
+
+    /* ---------- admin: ingrediënten samenvoegen ---------- */
+
+    var ingredientMergeForm = document.getElementById('ingredientMergeForm');
+
+    if (ingredientMergeForm) {
+        ingredientMergeForm.addEventListener('submit', function (e) {
+            e.preventDefault();
+
+            var f      = ingredientMergeForm.elements;
+            var fromId = parseInt(f.from_id.value, 10);
+            var intoId = parseInt(f.into_id.value, 10);
+
+            if (!fromId || !intoId) { return; }
+            if (fromId === intoId) {
+                toast('Kies twee verschillende ingrediënten.', true);
+                return;
+            }
+
+            var btn = ingredientMergeForm.querySelector('button[type="submit"]');
+            btn.disabled = true;
+
+            postJson('api/admin_ingredient_merge.php', { csrf: cfg.csrf, from_id: fromId, into_id: intoId })
+                .then(function (data) {
+                    applyAdminData(data);
+                    ingredientMergeForm.reset();
                     toast(data.notice);
                 })
                 .catch(function (err) {

@@ -182,3 +182,15 @@ function renderPantryItems(array $ingredients): string
     }
     return (string)ob_get_clean();
 }
+
+/** De twee keuzelijsten van het samenvoeg-formulier. */
+function renderIngredientOptions(array $ingredients): string
+{
+    ob_start();
+    foreach ($ingredients as $ing) {
+        ?>
+        <option value="<?= (int)$ing['id'] ?>"><?= esc($ing['name']) ?></option>
+        <?php
+    }
+    return (string)ob_get_clean();
+}

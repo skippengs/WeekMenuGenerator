@@ -117,6 +117,35 @@ $ingredients = fetchIngredientsForAdmin($pdo);
 
             <button class="btn btn-primary" type="submit">Voorraadlijst opslaan</button>
         </form>
+
+        <form class="card" id="ingredientMergeForm" style="margin-top:16px">
+            <h2>Ingrediënten samenvoegen</h2>
+            <p class="hint" style="margin-top:-10px">
+                Staat hetzelfde product onder twee namen in de lijst, bijvoorbeeld
+                "ui" en "uien"? Recepten die de eerste naam gebruiken, gebruiken
+                daarna de tweede; de eerste naam verdwijnt.
+            </p>
+
+            <div class="ingredient-merge">
+                <div class="field">
+                    <label for="f-merge-from">Naam die verdwijnt</label>
+                    <select id="f-merge-from" name="from_id" required>
+                        <option value="">Kies een ingrediënt...</option>
+                        <?= renderIngredientOptions($ingredients) ?>
+                    </select>
+                </div>
+                <i class="fa-solid fa-arrow-right ingredient-merge-arrow" aria-hidden="true"></i>
+                <div class="field">
+                    <label for="f-merge-into">Wordt samengevoegd met</label>
+                    <select id="f-merge-into" name="into_id" required>
+                        <option value="">Kies een ingrediënt...</option>
+                        <?= renderIngredientOptions($ingredients) ?>
+                    </select>
+                </div>
+            </div>
+
+            <button class="btn btn-primary" type="submit">Samenvoegen</button>
+        </form>
     </section>
 
 </main>
@@ -172,8 +201,11 @@ $ingredients = fetchIngredientsForAdmin($pdo);
 
                 <div class="field">
                     <label for="f-ingredients">Ingrediënten</label>
-                    <textarea id="f-ingredients" name="ingredients" rows="7"
-                              placeholder="400 g gehakt&#10;400 g macaroni&#10;2 ui&#10;100 g kaas"></textarea>
+                    <div class="ingredient-input-wrap">
+                        <textarea id="f-ingredients" name="ingredients" rows="7" autocomplete="off"
+                                  placeholder="400 g gehakt&#10;400 g macaroni&#10;2 ui&#10;100 g kaas"></textarea>
+                        <ul class="ingredient-suggest" id="ingredientSuggest" hidden></ul>
+                    </div>
                     <p class="field-hint">
                         Eén per regel, hoeveelheid eerst: <code>400 g gehakt</code>,
                         <code>2 teen knoflook</code>, <code>1 blik tomatenblokjes</code>.
@@ -231,7 +263,9 @@ $ingredients = fetchIngredientsForAdmin($pdo);
 
 <script>
     window.WEEKMENU = {
-        csrf: <?= json_encode(csrfToken()) ?>
+        csrf: <?= json_encode(csrfToken()) ?>,
+        ingredientNames: <?= json_encode(array_column($ingredients, 'name'), JSON_UNESCAPED_UNICODE) ?>,
+        ingredientUnits: <?= json_encode(INGREDIENT_UNITS) ?>
     };
 </script>
 <script src="assets/app.js"></script>

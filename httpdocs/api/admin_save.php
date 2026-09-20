@@ -69,18 +69,23 @@ try {
 
     syncIngredients($pdo, $id, $ingredients);
 
-    $recipeTable = renderRecipeTableBody($pdo);
-    $recipeCount = count(fetchRecipesForAdmin($pdo));
-    $pantryList  = renderPantryItems(fetchIngredientsForAdmin($pdo));
+    $recipeTable       = renderRecipeTableBody($pdo);
+    $recipeCount       = count(fetchRecipesForAdmin($pdo));
+    $ingredients       = fetchIngredientsForAdmin($pdo);
+    $pantryList        = renderPantryItems($ingredients);
+    $ingredientOptions = renderIngredientOptions($ingredients);
+    $ingredientNames   = array_column($ingredients, 'name');
 } catch (Throwable $e) {
     jsonOut(['error' => 'Opslaan mislukt'], 500);
 }
 
 jsonOut([
-    'ok'           => true,
-    'notice'       => $notice,
-    'id'           => $id,
-    'recipe_table' => $recipeTable,
-    'recipe_count' => $recipeCount,
-    'pantry_list'  => $pantryList,
+    'ok'                 => true,
+    'notice'             => $notice,
+    'id'                 => $id,
+    'recipe_table'       => $recipeTable,
+    'recipe_count'       => $recipeCount,
+    'pantry_list'        => $pantryList,
+    'ingredient_options' => $ingredientOptions,
+    'ingredient_names'   => $ingredientNames,
 ]);
