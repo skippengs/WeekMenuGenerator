@@ -23,11 +23,11 @@ if (!checkCsrf($input['csrf'] ?? null)) {
     jsonOut(['error' => 'Sessie verlopen. Ververs de pagina.'], 419);
 }
 
-$weekId    = isset($input['week_id'])    ? (int)$input['week_id']    : 0;
-$dayIndex  = isset($input['day_index'])  ? (int)$input['day_index']  : -1;
-$sourceDay = isset($input['source_day']) ? (int)$input['source_day'] : -1;
+$weekId   = isset($input['week_id'])   ? (int)$input['week_id']   : 0;
+$dayIndex = isset($input['day_index']) ? (int)$input['day_index'] : -1;
+$isRevert = ($input['action'] ?? null) === 'revert';
 
-if ($weekId <= 0 || $dayIndex < 0 || $dayIndex > 6 || $sourceDay < 0 || $sourceDay > 6) {
+if ($weekId <= 0 || $dayIndex < 0 || $dayIndex > 6) {
     jsonOut(['error' => 'Ongeldige dag'], 422);
 }
 if ($dayIndex === JUNK_DAY_INDEX) {
@@ -39,6 +39,18 @@ try {
 
     if (weekIsLocked($pdo, $weekId)) {
         jsonOut(['error' => 'Deze week is naar Bring gestuurd en staat op slot. Ontgrendel hem eerst.'], 409);
+    }
+
+    if ($isRevert) {
+        if (!revertLeftover($pdo, $weekId, $dayIndex)) {
+            jsonOut(['error' => 'Deze dag is geen restjesdag (meer). Ververs de pagina.'], 422);
+        }
+        jsonOut(['ok' => true]);
+    }
+
+    $sourceDay = isset($input['source_day']) ? (int)$input['source_day'] : -1;
+    if ($sourceDay < 0 || $sourceDay > 6) {
+        jsonOut(['error' => 'Ongeldige dag'], 422);
     }
 
     $recipe = assignLeftover($pdo, $weekId, $sourceDay, $dayIndex);

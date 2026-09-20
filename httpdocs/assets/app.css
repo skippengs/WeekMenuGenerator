@@ -183,15 +183,26 @@ a { color: var(--accent); }
     .chip-now { color: #10231a; }
 }
 
-.chip-leftover {
-    background: var(--leftover-soft);
-    color: var(--leftover);
-    margin-bottom: 5px;
-}
-
 .btn-leftover {
     color: var(--leftover);
     border-color: var(--leftover-soft);
+}
+
+.btn-leftover.is-active {
+    background: var(--leftover);
+    border-color: var(--leftover);
+    color: #fff;
+    font-weight: 600;
+}
+
+.btn-leftover.is-active:hover {
+    background: var(--leftover);
+    border-color: var(--leftover);
+    color: #fff;
+}
+
+@media (prefers-color-scheme: dark) {
+    .btn-leftover.is-active { color: #1c1a33; }
 }
 
 /* ---------- dagen ---------- */
@@ -277,7 +288,18 @@ button.recipe-name:hover {
 
 /* restjesdag */
 
-.day-leftover { border-color: var(--leftover-soft); }
+.day-leftover {
+    background: var(--leftover-soft);
+    border-color: transparent;
+}
+
+.leftover-label {
+    font-size: 17px;
+    font-weight: 650;
+    color: var(--leftover);
+}
+
+.day-leftover .day-name { color: var(--leftover); }
 
 /* ---------- lege staat ---------- */
 

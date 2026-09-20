@@ -307,8 +307,10 @@ function rerollDay(PDO $pdo, int $weekId, int $dayIndex): ?array
         return null;
     }
 
-    // Ook de manier om een restjesdag weer los te maken: die krijgt hier
-    // gewoon weer een eigen, vrij gekozen recept.
+    // Werkt ook op een restjesdag: die krijgt hier gewoon weer een eigen,
+    // vrij gekozen recept. De knop in de UI voor zo'n dag is revertLeftover()
+    // (terug naar leeg), maar deze weg blijft geldig als iets anders ooit
+    // rerollDay() op een restjesdag aanroept.
     $pdo->prepare(
         'UPDATE {menu_entry} SET recipe_id = ?, is_leftover = 0 WHERE week_id = ? AND day_index = ?'
     )->execute([$pick['id'], $weekId, $dayIndex]);
@@ -396,6 +398,23 @@ function assignLeftover(PDO $pdo, int $weekId, int $sourceDay, int $targetDay): 
     )->execute([(int)$recipe['id'], $weekId, $targetDay]);
 
     return $recipe;
+}
+
+/**
+ * Maakt een restjesdag weer los, zonder er een nieuw gerecht voor terug te
+ * zetten: gewoon weer een lege dag, zoals voor het aanklikken van
+ * "restjes van ...". Alleen dagen die op dit moment echt een restjesdag
+ * zijn worden zo geraakt.
+ */
+function revertLeftover(PDO $pdo, int $weekId, int $dayIndex): bool
+{
+    $stmt = $pdo->prepare(
+        'UPDATE {menu_entry} SET recipe_id = NULL, is_leftover = 0
+          WHERE week_id = ? AND day_index = ? AND is_leftover = 1'
+    );
+    $stmt->execute([$weekId, $dayIndex]);
+
+    return $stmt->rowCount() > 0;
 }
 
 /** Haalt een opgeslagen week op als array van 7 dagen. */

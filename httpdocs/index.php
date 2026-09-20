@@ -36,7 +36,9 @@ if ($week !== null) {
 
         if ($d['id'] !== null && empty($d['is_leftover']) && !empty($d['makes_leftovers'])) {
             $target = leftoverTargetDay($di);
-            if ($target !== null && empty($week['days'][$target]['is_leftover'])) {
+            // Alleen voorstellen op een dag die nog leeg is: staat er al
+            // een eigen gerecht gepland, dan zou aanklikken dat overschrijven.
+            if ($target !== null && ($week['days'][$target]['id'] ?? null) === null) {
                 $leftoverSuggestion[$target] = ['source_day' => $di, 'name' => $d['name']];
             }
         }
@@ -174,15 +176,14 @@ $recipeCount = (int)$pdo->query('SELECT COUNT(*) FROM {recipe} WHERE is_active =
                     <div class="day-body">
                         <?php if ($isJunk): ?>
                             <span class="junk-label"><?= esc(JUNK_LABEL) ?></span>
+                        <?php elseif ($isLeftover): ?>
+                            <span class="leftover-label">
+                                Restjes<?php if (isset($leftoverSourceDay[$i])): ?>
+                                    van <?= esc(DAY_NAMES[$leftoverSourceDay[$i]]) ?>
+                                <?php endif; ?>
+                            </span>
                         <?php elseif ($hasRecipe): ?>
                             <div class="recipe">
-                                <?php if ($isLeftover): ?>
-                                    <span class="chip chip-leftover">
-                                        Restjes<?php if (isset($leftoverSourceDay[$i])): ?>
-                                            van <?= esc(DAY_NAMES[$leftoverSourceDay[$i]]) ?>
-                                        <?php endif; ?>
-                                    </span>
-                                <?php endif; ?>
                                 <button class="recipe-name" data-field="name"
                                         data-recipe="<?= (int)$entry['id'] ?>"
                                         title="Bekijk de bereiding"><?= esc($entry['name']) ?></button>
@@ -208,23 +209,30 @@ $recipeCount = (int)$pdo->query('SELECT COUNT(*) FROM {recipe} WHERE is_active =
                     <?php if (!$isJunk): ?>
                         <div class="day-actions">
                             <?php if ($mayEditMenu): ?>
-                                <?php if (!$isLeftover): ?>
+                                <?php if ($isLeftover): ?>
+                                    <button class="btn btn-leftover is-active" data-leftover-revert="<?= $i ?>"
+                                            title="Zet deze dag weer leeg">
+                                        Restjes<?php if (isset($leftoverSourceDay[$i])): ?>
+                                            van <?= esc(DAY_NAMES[$leftoverSourceDay[$i]]) ?>
+                                        <?php endif; ?>
+                                    </button>
+                                <?php else: ?>
                                     <div class="servings servings-day" data-servings-control="<?= $i ?>">
                                         <button class="servings-btn" data-servings="-1" aria-label="Minder personen">&minus;</button>
                                         <span class="servings-value"><span data-servings-value><?= $dayServings ?></span>p</span>
                                         <button class="servings-btn" data-servings="1" aria-label="Meer personen">+</button>
                                     </div>
-                                <?php endif; ?>
-                                <?php if (isset($leftoverSuggestion[$i])): ?>
-                                    <button class="btn btn-ghost btn-leftover" data-leftover="<?= $i ?>"
-                                            data-leftover-source="<?= $leftoverSuggestion[$i]['source_day'] ?>"
-                                            title="Dit gerecht was genoeg voor twee dagen">
-                                        Restjes van <?= esc(DAY_NAMES[$leftoverSuggestion[$i]['source_day']]) ?>
+                                    <?php if (isset($leftoverSuggestion[$i])): ?>
+                                        <button class="btn btn-ghost btn-leftover" data-leftover-assign="<?= $i ?>"
+                                                data-leftover-source="<?= $leftoverSuggestion[$i]['source_day'] ?>"
+                                                title="Dit gerecht was genoeg voor twee dagen">
+                                            Restjes van <?= esc(DAY_NAMES[$leftoverSuggestion[$i]['source_day']]) ?>
+                                        </button>
+                                    <?php endif; ?>
+                                    <button class="btn btn-reroll" data-reroll="<?= $i ?>" title="Ander gerecht voor deze dag">
+                                        Ander gerecht
                                     </button>
                                 <?php endif; ?>
-                                <button class="btn btn-reroll" data-reroll="<?= $i ?>" title="Ander gerecht voor deze dag">
-                                    Ander gerecht
-                                </button>
                             <?php elseif (!$isLeftover): ?>
                                 <span class="chip chip-soft"><?= $dayServings ?> pers.</span>
                             <?php endif; ?>

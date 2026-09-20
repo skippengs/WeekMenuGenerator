@@ -398,30 +398,38 @@
         });
     });
 
-    /* ---------- restjesdag aanwijzen ---------- */
+    /* ---------- restjesdag aanwijzen of weer loskoppelen ---------- */
 
     document.addEventListener('click', function (e) {
-        var btn = e.target.closest('[data-leftover]');
+        var btn = e.target.closest('[data-leftover-assign], [data-leftover-revert]');
         if (!btn) { return; }
 
         e.preventDefault();
 
-        var day      = parseInt(btn.getAttribute('data-leftover'), 10);
-        var source   = parseInt(btn.getAttribute('data-leftover-source'), 10);
+        var isRevert = btn.hasAttribute('data-leftover-revert');
+        var day      = parseInt(btn.getAttribute(isRevert ? 'data-leftover-revert' : 'data-leftover-assign'), 10);
         var original = btn.textContent;
+
+        var payload = {
+            csrf: cfg.csrf,
+            week_id: cfg.weekId,
+            day_index: day
+        };
+
+        if (isRevert) {
+            payload.action = 'revert';
+        } else {
+            payload.source_day = parseInt(btn.getAttribute('data-leftover-source'), 10);
+        }
 
         btn.disabled = true;
         btn.textContent = 'Bezig...';
 
-        postJson('api/leftover.php', {
-            csrf: cfg.csrf,
-            week_id: cfg.weekId,
-            day_index: day,
-            source_day: source
-        }).then(function () {
-            // Personen-stappers verdwijnen, het "restjes van"-label komt
-            // erbij: een herlaad is hier simpeler dan alles met de hand
-            // bijwerken.
+        postJson('api/leftover.php', payload).then(function () {
+            // De kaart wisselt tussen het gewone gerecht en de
+            // restjesweergave, en dat kan verderop in de week ook een
+            // "Restjes van..."-knop laten verschijnen of verdwijnen: een
+            // herlaad is hier simpeler dan alles met de hand bijwerken.
             window.location.reload();
         }).catch(function (err) {
             btn.disabled = false;
