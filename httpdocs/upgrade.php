@@ -35,9 +35,11 @@ try {
     $columns = [
         ['{recipe}',            'recipe',            'steps',    'ALTER TABLE {recipe} ADD COLUMN steps TEXT NULL AFTER notes'],
         ['{recipe}',            'recipe',            'servings', 'ALTER TABLE {recipe} ADD COLUMN servings TINYINT UNSIGNED NOT NULL DEFAULT 4 AFTER weekend_only'],
+        ['{recipe}',            'recipe',            'makes_leftovers', 'ALTER TABLE {recipe} ADD COLUMN makes_leftovers TINYINT(1) NOT NULL DEFAULT 0 AFTER weekend_only'],
         ['{recipe_ingredient}', 'recipe_ingredient', 'amount',   'ALTER TABLE {recipe_ingredient} ADD COLUMN amount DECIMAL(8,2) NULL'],
         ['{recipe_ingredient}', 'recipe_ingredient', 'unit',     'ALTER TABLE {recipe_ingredient} ADD COLUMN unit VARCHAR(20) NULL'],
         ['{menu_entry}',        'menu_entry',        'servings',  'ALTER TABLE {menu_entry} ADD COLUMN servings TINYINT UNSIGNED NOT NULL DEFAULT 3'],
+        ['{menu_entry}',        'menu_entry',        'is_leftover', 'ALTER TABLE {menu_entry} ADD COLUMN is_leftover TINYINT(1) NOT NULL DEFAULT 0 AFTER is_junkfood'],
         ['{menu_week}',         'menu_week',         'locked_at', 'ALTER TABLE {menu_week} ADD COLUMN locked_at DATETIME NULL'],
     ];
 

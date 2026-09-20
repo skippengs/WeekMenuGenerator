@@ -19,6 +19,30 @@ $current  = weekStart($_GET['week'] ?? null);
 $week     = loadWeek($pdo, $current);
 $shopping = $week ? shoppingList($pdo, $week['id']) : [];
 
+// Restjes: van welke dag is een restjesdag afkomstig, en op welke lege
+// dag mag je "restjes van ..." aanklikken.
+$leftoverSourceDay  = [];
+$leftoverSuggestion = [];
+if ($week !== null) {
+    foreach ($week['days'] as $di => $d) {
+        if (!empty($d['is_leftover']) && $d['id'] !== null) {
+            foreach ($week['days'] as $sdi => $sd) {
+                if ($sdi < $di && $sd['id'] === $d['id'] && empty($sd['is_leftover'])) {
+                    $leftoverSourceDay[$di] = $sdi;
+                    break;
+                }
+            }
+        }
+
+        if ($d['id'] !== null && empty($d['is_leftover']) && !empty($d['makes_leftovers'])) {
+            $target = leftoverTargetDay($di);
+            if ($target !== null && empty($week['days'][$target]['is_leftover'])) {
+                $leftoverSuggestion[$target] = ['source_day' => $di, 'name' => $d['name']];
+            }
+        }
+    }
+}
+
 // Een week die naar Bring is gestuurd staat op slot: het menu ligt vast,
 // maar afstrepen tijdens het boodschappen doen moet gewoon kunnen.
 $isLocked    = $week !== null && $week['locked_at'] !== null;
@@ -137,10 +161,11 @@ $recipeCount = (int)$pdo->query('SELECT COUNT(*) FROM {recipe} WHERE is_active =
                 $entry      = $week['days'][$i] ?? null;
                 $isJunk     = $i === JUNK_DAY_INDEX;
                 $hasRecipe  = $entry && $entry['id'] !== null;
+                $isLeftover = $hasRecipe && !empty($entry['is_leftover']);
                 ?>
                 <?php $dayServings = (int)($entry['servings'] ?? 3); ?>
-                <article class="day <?= $isJunk ? 'day-junk' : '' ?>" data-day="<?= $i ?>"
-                         data-day-servings="<?= $dayServings ?>">
+                <article class="day <?= $isJunk ? 'day-junk' : '' ?> <?= $isLeftover ? 'day-leftover' : '' ?>"
+                         data-day="<?= $i ?>" data-day-servings="<?= $dayServings ?>">
                     <div class="day-head">
                         <span class="day-name"><?= esc($dayName) ?></span>
                         <span class="day-date"><?= esc(dayDate($current, $i)) ?></span>
@@ -151,6 +176,13 @@ $recipeCount = (int)$pdo->query('SELECT COUNT(*) FROM {recipe} WHERE is_active =
                             <span class="junk-label"><?= esc(JUNK_LABEL) ?></span>
                         <?php elseif ($hasRecipe): ?>
                             <div class="recipe">
+                                <?php if ($isLeftover): ?>
+                                    <span class="chip chip-leftover">
+                                        Restjes<?php if (isset($leftoverSourceDay[$i])): ?>
+                                            van <?= esc(DAY_NAMES[$leftoverSourceDay[$i]]) ?>
+                                        <?php endif; ?>
+                                    </span>
+                                <?php endif; ?>
                                 <button class="recipe-name" data-field="name"
                                         data-recipe="<?= (int)$entry['id'] ?>"
                                         title="Bekijk de bereiding"><?= esc($entry['name']) ?></button>
@@ -176,15 +208,24 @@ $recipeCount = (int)$pdo->query('SELECT COUNT(*) FROM {recipe} WHERE is_active =
                     <?php if (!$isJunk): ?>
                         <div class="day-actions">
                             <?php if ($mayEditMenu): ?>
-                                <div class="servings servings-day" data-servings-control="<?= $i ?>">
-                                    <button class="servings-btn" data-servings="-1" aria-label="Minder personen">&minus;</button>
-                                    <span class="servings-value"><span data-servings-value><?= $dayServings ?></span>p</span>
-                                    <button class="servings-btn" data-servings="1" aria-label="Meer personen">+</button>
-                                </div>
+                                <?php if (!$isLeftover): ?>
+                                    <div class="servings servings-day" data-servings-control="<?= $i ?>">
+                                        <button class="servings-btn" data-servings="-1" aria-label="Minder personen">&minus;</button>
+                                        <span class="servings-value"><span data-servings-value><?= $dayServings ?></span>p</span>
+                                        <button class="servings-btn" data-servings="1" aria-label="Meer personen">+</button>
+                                    </div>
+                                <?php endif; ?>
+                                <?php if (isset($leftoverSuggestion[$i])): ?>
+                                    <button class="btn btn-ghost btn-leftover" data-leftover="<?= $i ?>"
+                                            data-leftover-source="<?= $leftoverSuggestion[$i]['source_day'] ?>"
+                                            title="Dit gerecht was genoeg voor twee dagen">
+                                        Restjes van <?= esc(DAY_NAMES[$leftoverSuggestion[$i]['source_day']]) ?>
+                                    </button>
+                                <?php endif; ?>
                                 <button class="btn btn-reroll" data-reroll="<?= $i ?>" title="Ander gerecht voor deze dag">
                                     Ander gerecht
                                 </button>
-                            <?php else: ?>
+                            <?php elseif (!$isLeftover): ?>
                                 <span class="chip chip-soft"><?= $dayServings ?> pers.</span>
                             <?php endif; ?>
                         </div>
@@ -213,7 +254,6 @@ $recipeCount = (int)$pdo->query('SELECT COUNT(*) FROM {recipe} WHERE is_active =
                     </div>
                     <?php if ($mayEdit): ?>
                         <a class="btn btn-bring" href="bring-export.php?week=<?= esc($current) ?>"
-                           target="_blank" rel="noopener"
                            title="Zet de lijst in de Bring! app; de week gaat daarna op slot">
                             <?= $isLocked ? 'Opnieuw naar Bring!' : 'Naar Bring!' ?>
                         </a>

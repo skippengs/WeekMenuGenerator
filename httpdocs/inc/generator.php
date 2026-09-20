@@ -10,7 +10,7 @@ if (!defined('WEEKMENU')) { http_response_code(403); exit('Forbidden'); }
 function loadPool(PDO $pdo, array $pantryIds, string $referenceWeek): array
 {
     $recipes = $pdo->query(
-        'SELECT id, name, category, effort, weekend_only, notes, url
+        'SELECT id, name, category, effort, weekend_only, makes_leftovers, notes, url
            FROM {recipe}
           WHERE is_active = 1'
     )->fetchAll();
@@ -53,9 +53,10 @@ function loadPool(PDO $pdo, array $pantryIds, string $referenceWeek): array
     }
 
     foreach ($recipes as &$r) {
-        $r['id']           = (int)$r['id'];
-        $r['effort']       = (int)$r['effort'];
-        $r['weekend_only'] = (int)$r['weekend_only'];
+        $r['id']              = (int)$r['id'];
+        $r['effort']          = (int)$r['effort'];
+        $r['weekend_only']    = (int)$r['weekend_only'];
+        $r['makes_leftovers'] = (int)$r['makes_leftovers'];
 
         $r['weeks_since'] = isset($distance[$r['id']])
             ? (int)floor($distance[$r['id']] / 7)
@@ -139,10 +140,19 @@ function pickForDay(array $pool, int $dayIndex, array $usedIds, array $usedCats)
     $cooledOff = static fn(array $r): bool => $r['weeks_since'] === null || $r['weeks_since'] >= COOLDOWN_WEEKS;
     $newCat    = static fn(array $r): bool => !in_array($r['category'], $usedCats, true);
 
+    // Restjes twee dagen later heeft geen zin meer als de week daarvoor
+    // geen ruimte overlaat (leftoverTargetDay() geeft dan null). Een
+    // weekend-only gerecht mag dat nooit halen - hoort al alleen op
+    // zaterdag/zondag - dus die krijgt hier geen streep.
+    $leftoverOk = static fn(array $r): bool =>
+        $r['weekend_only'] === 1
+        || $r['makes_leftovers'] === 0
+        || leftoverTargetDay($dayIndex) !== null;
+
     $stages = [
-        static fn(array $r): bool => $notUsed($r) && $dayOk($r) && $cooledOff($r) && $newCat($r),
-        static fn(array $r): bool => $notUsed($r) && $dayOk($r) && $cooledOff($r),
-        static fn(array $r): bool => $notUsed($r) && $dayOk($r),
+        static fn(array $r): bool => $notUsed($r) && $dayOk($r) && $leftoverOk($r) && $cooledOff($r) && $newCat($r),
+        static fn(array $r): bool => $notUsed($r) && $dayOk($r) && $leftoverOk($r) && $cooledOff($r),
+        static fn(array $r): bool => $notUsed($r) && $dayOk($r) && $leftoverOk($r),
         static fn(array $r): bool => $notUsed($r),
         static fn(array $r): bool => true,
     ];
@@ -297,9 +307,22 @@ function rerollDay(PDO $pdo, int $weekId, int $dayIndex): ?array
         return null;
     }
 
+    // Ook de manier om een restjesdag weer los te maken: die krijgt hier
+    // gewoon weer een eigen, vrij gekozen recept.
     $pdo->prepare(
-        'UPDATE {menu_entry} SET recipe_id = ? WHERE week_id = ? AND day_index = ?'
+        'UPDATE {menu_entry} SET recipe_id = ?, is_leftover = 0 WHERE week_id = ? AND day_index = ?'
     )->execute([$pick['id'], $weekId, $dayIndex]);
+
+    // Was dit de brondag van een al aangewezen restjesdag, dan klopt die
+    // niet meer - het gerecht waar hij restjes van zou zijn staat hier
+    // niet meer. Zet hem terug naar een lege dag in plaats van te laten
+    // staan met een gerecht dat je niet meer kookt.
+    if ($currentId !== null) {
+        $pdo->prepare(
+            'UPDATE {menu_entry} SET recipe_id = NULL, is_leftover = 0
+              WHERE week_id = ? AND day_index != ? AND recipe_id = ? AND is_leftover = 1'
+        )->execute([$weekId, $dayIndex, $currentId]);
+    }
 
     return $pick;
 }
@@ -325,6 +348,56 @@ function weekIsLockedByDate(PDO $pdo, string $weekStart): bool
     return $value !== false && $value !== null;
 }
 
+/**
+ * Welke dag komt in aanmerking voor restjes van een recept dat op
+ * $sourceDay gekookt is: vast twee dagen later, één voor één doorgeschoven
+ * voorbij de junkfood-dag. Valt er binnen de week geen dag meer over, dan
+ * null - dat recept is die week gewoon maar één keer op tafel geweest.
+ */
+function leftoverTargetDay(int $sourceDay): ?int
+{
+    for ($t = $sourceDay + 2; $t <= 6; $t++) {
+        if ($t !== JUNK_DAY_INDEX) {
+            return $t;
+        }
+    }
+
+    return null;
+}
+
+/**
+ * Wijst een dag aan als restjes van een eerdere dag deze week. Het
+ * onderliggende recept moet als "genoeg voor restjes" gemarkeerd staan en
+ * zelf geen restjesdag zijn, en de doeldag moet precies kloppen met
+ * leftoverTargetDay() voor die brondag - anders zou de api een dag kunnen
+ * overschrijven met restjes die daar niet bij horen.
+ */
+function assignLeftover(PDO $pdo, int $weekId, int $sourceDay, int $targetDay): ?array
+{
+    if ($targetDay === $sourceDay || leftoverTargetDay($sourceDay) !== $targetDay) {
+        return null;
+    }
+
+    $stmt = $pdo->prepare(
+        'SELECT r.id, r.name, r.category, r.effort, r.notes, r.url
+           FROM {menu_entry} me
+           JOIN {recipe} r ON r.id = me.recipe_id
+          WHERE me.week_id = ? AND me.day_index = ?
+            AND me.is_leftover = 0 AND r.makes_leftovers = 1'
+    );
+    $stmt->execute([$weekId, $sourceDay]);
+    $recipe = $stmt->fetch();
+    if (!$recipe) {
+        return null;
+    }
+
+    $pdo->prepare(
+        'UPDATE {menu_entry} SET recipe_id = ?, is_leftover = 1 WHERE week_id = ? AND day_index = ?'
+    )->execute([(int)$recipe['id'], $weekId, $targetDay]);
+
+    return $recipe;
+}
+
 /** Haalt een opgeslagen week op als array van 7 dagen. */
 function loadWeek(PDO $pdo, string $weekStart): ?array
 {
@@ -336,8 +409,8 @@ function loadWeek(PDO $pdo, string $weekStart): ?array
     }
 
     $stmt = $pdo->prepare(
-        'SELECT me.day_index, me.is_junkfood, me.servings,
-                r.id, r.name, r.category, r.effort, r.notes, r.url
+        'SELECT me.day_index, me.is_junkfood, me.is_leftover, me.servings,
+                r.id, r.name, r.category, r.effort, r.notes, r.url, r.makes_leftovers
            FROM {menu_entry} me
       LEFT JOIN {recipe} r ON r.id = me.recipe_id
           WHERE me.week_id = ?
@@ -375,7 +448,7 @@ function shoppingList(PDO $pdo, int $weekId): array
            JOIN {recipe} r ON r.id = me.recipe_id
            JOIN {recipe_ingredient} ri ON ri.recipe_id = me.recipe_id
            JOIN {ingredient} i ON i.id = ri.ingredient_id
-          WHERE me.week_id = ?
+          WHERE me.week_id = ? AND me.is_leftover = 0
           GROUP BY i.id, i.name, i.category, ri.unit
           ORDER BY i.category, i.name'
     );

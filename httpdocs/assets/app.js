@@ -375,8 +375,7 @@
 
         e.preventDefault();
 
-        var dayEl = btn.closest('.day');
-        var day   = parseInt(btn.getAttribute('data-reroll'), 10);
+        var day = parseInt(btn.getAttribute('data-reroll'), 10);
 
         btn.disabled = true;
         var original = btn.textContent;
@@ -386,36 +385,50 @@
             csrf: cfg.csrf,
             week_id: cfg.weekId,
             day_index: day
-        }).then(function (data) {
-            setField(dayEl, 'name', data.name);
-            setField(dayEl, 'category', data.category);
-            setField(dayEl, 'effort', data.effort);
-            setField(dayEl, 'notes', data.notes);
-
-            var nameEl = dayEl.querySelector('[data-field="name"]');
-            if (nameEl) {
-                nameEl.classList.remove('is-muted');
-                // Zonder dit opent de klik nog het vorige recept.
-                nameEl.setAttribute('data-recipe', data.id);
-            }
-
-            dayEl.classList.remove('is-swapped');
-            void dayEl.offsetWidth;          // forceer herstart van de animatie
-            dayEl.classList.add('is-swapped');
-        }).catch(function (err) {
-            toast(err.message, true);
         }).then(function () {
+            // Een ander gerecht kan een restjesdag verderop in de week
+            // losmaken, of een nieuwe "restjes van"-knop laten verschijnen.
+            // Dat staat overal in de pagina, dus een herlaad is simpeler
+            // (en minder foutgevoelig) dan alles met de hand bijwerken.
+            window.location.reload();
+        }).catch(function (err) {
             btn.disabled = false;
             btn.textContent = original;
+            toast(err.message, true);
         });
     });
 
-    function setField(scope, field, value) {
-        var el = scope.querySelector('[data-field="' + field + '"]');
-        if (!el) { return; }
-        el.textContent = value || '';
-        el.classList.toggle('is-empty', !value);
-    }
+    /* ---------- restjesdag aanwijzen ---------- */
+
+    document.addEventListener('click', function (e) {
+        var btn = e.target.closest('[data-leftover]');
+        if (!btn) { return; }
+
+        e.preventDefault();
+
+        var day      = parseInt(btn.getAttribute('data-leftover'), 10);
+        var source   = parseInt(btn.getAttribute('data-leftover-source'), 10);
+        var original = btn.textContent;
+
+        btn.disabled = true;
+        btn.textContent = 'Bezig...';
+
+        postJson('api/leftover.php', {
+            csrf: cfg.csrf,
+            week_id: cfg.weekId,
+            day_index: day,
+            source_day: source
+        }).then(function () {
+            // Personen-stappers verdwijnen, het "restjes van"-label komt
+            // erbij: een herlaad is hier simpeler dan alles met de hand
+            // bijwerken.
+            window.location.reload();
+        }).catch(function (err) {
+            btn.disabled = false;
+            btn.textContent = original;
+            toast(err.message, true);
+        });
+    });
 
     renderShopping();
 

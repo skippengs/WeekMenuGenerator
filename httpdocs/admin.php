@@ -115,6 +115,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $category    = (string)($_POST['category'] ?? 'overig');
                 $effort      = (int)($_POST['effort'] ?? 2);
                 $weekendOnly = isset($_POST['weekend_only']) ? 1 : 0;
+                $makesLeftovers = isset($_POST['makes_leftovers']) ? 1 : 0;
                 $servings    = max(1, min(20, (int)($_POST['servings'] ?? 4)));
                 $isMine      = isset($_POST['is_mine']) ? 1 : 0;
                 $notes       = trim((string)($_POST['notes'] ?? ''));
@@ -134,17 +135,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 if ($id > 0) {
                     $pdo->prepare(
                         'UPDATE {recipe}
-                            SET name = ?, category = ?, effort = ?, weekend_only = ?,
+                            SET name = ?, category = ?, effort = ?, weekend_only = ?, makes_leftovers = ?,
                                 servings = ?, notes = ?, steps = ?, url = ?, is_mine = ?
                           WHERE id = ?'
-                    )->execute([$name, $category, $effort, $weekendOnly, $servings,
+                    )->execute([$name, $category, $effort, $weekendOnly, $makesLeftovers, $servings,
                                 $notes ?: null, $steps ?: null, $url ?: null, $isMine, $id]);
                     $notice = 'Recept bijgewerkt.';
                 } else {
                     $pdo->prepare(
-                        'INSERT INTO {recipe} (name, category, effort, weekend_only, servings, notes, steps, url, is_mine)
-                         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)'
-                    )->execute([$name, $category, $effort, $weekendOnly, $servings,
+                        'INSERT INTO {recipe} (name, category, effort, weekend_only, makes_leftovers, servings, notes, steps, url, is_mine)
+                         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
+                    )->execute([$name, $category, $effort, $weekendOnly, $makesLeftovers, $servings,
                                 $notes ?: null, $steps ?: null, $url ?: null, $isMine]);
                     $id = (int)$pdo->lastInsertId();
                     $notice = 'Recept toegevoegd.';
@@ -342,6 +343,17 @@ $val = static fn(string $key, $fallback = '') => $editing[$key] ?? $fallback;
             </div>
 
             <div class="field field-check">
+                <input type="checkbox" id="f-leftovers" name="makes_leftovers" value="1"
+                       <?= (int)$val('makes_leftovers', 0) === 1 ? 'checked' : '' ?>>
+                <label for="f-leftovers">Genoeg voor restjes (2 dagen later)</label>
+                <p class="field-hint">
+                    Je kunt dan in het weekmenu zelf een dag twee dagen later
+                    aanwijzen als restjesdag. Die telt niet extra mee op de
+                    boodschappenlijst.
+                </p>
+            </div>
+
+            <div class="field field-check">
                 <input type="checkbox" id="f-mine" name="is_mine" value="1"
                        <?= (int)$val('is_mine', $editing ? 0 : 1) === 1 ? 'checked' : '' ?>>
                 <label for="f-mine">Eigen recept</label>
@@ -378,6 +390,9 @@ $val = static fn(string $key, $fallback = '') => $editing[$key] ?? $fallback;
                             <?= esc($r['name']) ?>
                             <?php if ((int)$r['weekend_only'] === 1): ?>
                                 <span class="chip chip-soft">weekend</span>
+                            <?php endif; ?>
+                            <?php if ((int)$r['makes_leftovers'] === 1): ?>
+                                <span class="chip chip-soft">restjes</span>
                             <?php endif; ?>
                         </td>
                         <td class="col-hide"><?= esc(CATEGORIES[$r['category']] ?? $r['category']) ?></td>
