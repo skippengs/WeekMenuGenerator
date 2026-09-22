@@ -194,3 +194,102 @@ function renderIngredientOptions(array $ingredients): string
     }
     return (string)ob_get_clean();
 }
+
+/*
+ * Kortingen beheren: de geleerde woorden en losse producten die "klopt
+ * niet, uitsluiten" in het kortingsvenster wegschrijft (zie inc/deals.php)
+ * waren tot nu toe alleen met de hand in de database terug te draaien. Dit
+ * geeft er een tabblad in admin.php voor, met dezelfde tabel/knop-opzet als
+ * de receptentabel hierboven.
+ */
+
+/** Winkelnaam bij een retailer-code, of de code zelf als hij niet bekend is. */
+function dealRetailerLabel(string $retailer): string
+{
+    return DEALS_RETAILERS[$retailer] ?? $retailer;
+}
+
+/** Leesbare versie van een product_key ("name:iets" / "id:123") voor in de tabel. */
+function dealProductKeyLabel(string $key): string
+{
+    if (str_starts_with($key, 'name:')) {
+        return substr($key, 5);
+    }
+    if (str_starts_with($key, 'id:')) {
+        return 'productcode ' . substr($key, 3);
+    }
+    return $key;
+}
+
+function fetchDealExclusionWordsForAdmin(PDO $pdo): array
+{
+    return $pdo->query(
+        'SELECT word, hits, last_seen FROM {deal_exclusion_word} ORDER BY hits DESC, word'
+    )->fetchAll();
+}
+
+function renderDealExclusionWordRow(array $w): string
+{
+    ob_start();
+    ?>
+    <tr data-word="<?= esc($w['word']) ?>">
+        <td><?= esc($w['word']) ?></td>
+        <td class="col-hide"><?= (int)$w['hits'] ?>&times;</td>
+        <td class="col-hide"><?= esc(date('d-m-Y', strtotime((string)$w['last_seen']))) ?></td>
+        <td class="col-actions">
+            <button class="linkbtn linkbtn-danger" type="button"
+                    data-delete-deal-word="<?= esc($w['word']) ?>">wis</button>
+        </td>
+    </tr>
+    <?php
+    return (string)ob_get_clean();
+}
+
+function renderDealExclusionWordTable(PDO $pdo): string
+{
+    $html = '';
+    foreach (fetchDealExclusionWordsForAdmin($pdo) as $w) {
+        $html .= renderDealExclusionWordRow($w);
+    }
+    return $html;
+}
+
+function fetchDealExclusionsForAdmin(PDO $pdo): array
+{
+    return $pdo->query(
+        'SELECT de.ingredient_id, de.retailer, de.product_key, de.created_at, i.name AS ingredient_name
+           FROM {deal_exclusion} de
+           JOIN {ingredient} i ON i.id = de.ingredient_id
+          ORDER BY de.created_at DESC'
+    )->fetchAll();
+}
+
+function renderDealExclusionRow(array $e): string
+{
+    ob_start();
+    ?>
+    <tr data-ingredient-id="<?= (int)$e['ingredient_id'] ?>" data-retailer="<?= esc($e['retailer']) ?>"
+        data-product-key="<?= esc($e['product_key']) ?>">
+        <td><?= esc($e['ingredient_name']) ?></td>
+        <td class="col-hide"><?= esc(dealRetailerLabel($e['retailer'])) ?></td>
+        <td class="col-hide"><?= esc(dealProductKeyLabel($e['product_key'])) ?></td>
+        <td class="col-actions">
+            <button class="linkbtn linkbtn-danger" type="button"
+                    data-delete-deal-exclusion="1"
+                    data-ingredient-id="<?= (int)$e['ingredient_id'] ?>"
+                    data-retailer="<?= esc($e['retailer']) ?>"
+                    data-product-key="<?= esc($e['product_key']) ?>">wis</button>
+        </td>
+    </tr>
+    <?php
+    return (string)ob_get_clean();
+}
+
+function renderDealExclusionTable(PDO $pdo): string
+{
+    $html = '';
+    foreach (fetchDealExclusionsForAdmin($pdo) as $e) {
+        $html .= renderDealExclusionRow($e);
+    }
+    return $html;
+}

@@ -199,6 +199,10 @@ ook "kipfilet", "spek" enzovoort tegen datzelfde soort verkeerde match.
 `upgrade.php` laadt hier een startset van voor, zodat je niet vanaf nul
 tegen dezelfde veelvoorkomende missers aanloopt.
 
+Per ongeluk een verkeerd woord of product uitgesloten? In Recepten beheren,
+tabblad **Kortingen**, staan beide lijsten met een "wis"-knop erbij om dat
+terug te draaien.
+
 ### Bijstellen
 
 In `inc/config.php`:

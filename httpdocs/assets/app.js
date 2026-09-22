@@ -737,6 +737,22 @@
         }
 
         if (data.ingredient_names !== undefined) { cfg.ingredientNames = data.ingredient_names; }
+
+        var dealWordBody = document.getElementById('dealWordTableBody');
+        if (dealWordBody && data.deal_word_table !== undefined) { dealWordBody.innerHTML = data.deal_word_table; }
+
+        var dealWordCount = document.getElementById('dealWordCount');
+        if (dealWordCount && data.deal_word_count !== undefined) {
+            dealWordCount.textContent = data.deal_word_count + ' geleerde woorden';
+        }
+
+        var dealExclusionBody = document.getElementById('dealExclusionTableBody');
+        if (dealExclusionBody && data.deal_exclusion_table !== undefined) { dealExclusionBody.innerHTML = data.deal_exclusion_table; }
+
+        var dealExclusionCount = document.getElementById('dealExclusionCount');
+        if (dealExclusionCount && data.deal_exclusion_count !== undefined) {
+            dealExclusionCount.textContent = data.deal_exclusion_count + ' uitgesloten producten';
+        }
     }
 
     document.addEventListener('click', function (e) {
@@ -847,6 +863,52 @@
                 })
                 .catch(function (err) {
                     deleteBtn.disabled = false;
+                    toast(err.message, true);
+                });
+            return;
+        }
+
+        var deleteWordBtn = e.target.closest('[data-delete-deal-word]');
+        if (deleteWordBtn) {
+            e.preventDefault();
+
+            var word = deleteWordBtn.getAttribute('data-delete-deal-word');
+            if (!confirm('"' + word + '" niet meer als geleerd woord gebruiken?')) { return; }
+
+            deleteWordBtn.disabled = true;
+
+            postJson('api/admin_deal_word_delete.php', { csrf: cfg.csrf, word: word })
+                .then(function (data) {
+                    applyAdminData(data);
+                    toast(data.notice);
+                })
+                .catch(function (err) {
+                    deleteWordBtn.disabled = false;
+                    toast(err.message, true);
+                });
+            return;
+        }
+
+        var deleteExclusionBtn = e.target.closest('[data-delete-deal-exclusion]');
+        if (deleteExclusionBtn) {
+            e.preventDefault();
+
+            if (!confirm('Deze uitsluiting weer toestaan?')) { return; }
+
+            deleteExclusionBtn.disabled = true;
+
+            postJson('api/admin_deal_exclusion_delete.php', {
+                csrf: cfg.csrf,
+                ingredient_id: parseInt(deleteExclusionBtn.getAttribute('data-ingredient-id'), 10),
+                retailer: deleteExclusionBtn.getAttribute('data-retailer'),
+                product_key: deleteExclusionBtn.getAttribute('data-product-key')
+            })
+                .then(function (data) {
+                    applyAdminData(data);
+                    toast(data.notice);
+                })
+                .catch(function (err) {
+                    deleteExclusionBtn.disabled = false;
                     toast(err.message, true);
                 });
         }

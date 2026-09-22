@@ -14,8 +14,10 @@ requireAdmin();
 
 $pdo = db();
 
-$recipes     = fetchRecipesForAdmin($pdo);
-$ingredients = fetchIngredientsForAdmin($pdo);
+$recipes            = fetchRecipesForAdmin($pdo);
+$ingredients        = fetchIngredientsForAdmin($pdo);
+$dealExclusionWords = fetchDealExclusionWordsForAdmin($pdo);
+$dealExclusions     = fetchDealExclusionsForAdmin($pdo);
 ?>
 <!DOCTYPE html>
 <html lang="nl">
@@ -53,6 +55,7 @@ $ingredients = fetchIngredientsForAdmin($pdo);
         <button class="tab-btn is-active" type="button" role="tab" data-tab="recepten">Recepten</button>
         <button class="tab-btn" type="button" role="tab" data-tab="instellingen">Instellingen</button>
         <button class="tab-btn" type="button" role="tab" data-tab="voorraad">Voorraadlijst</button>
+        <button class="tab-btn" type="button" role="tab" data-tab="kortingen">Kortingen</button>
     </div>
 
     <!-- recepten ------------------------------------------------------ -->
@@ -146,6 +149,65 @@ $ingredients = fetchIngredientsForAdmin($pdo);
 
             <button class="btn btn-primary" type="submit">Samenvoegen</button>
         </form>
+    </section>
+
+    <!-- kortingen ------------------------------------------------------ -->
+    <section class="tab-panel" id="tab-kortingen" data-tab-panel="kortingen" hidden>
+        <div class="card">
+            <div class="card-head">
+                <h2 id="dealWordCount"><?= count($dealExclusionWords) ?> geleerde woorden</h2>
+            </div>
+            <p class="hint" style="margin-top:-10px">
+                Woorden die de knop "klopt niet, uitsluiten" in het kortingsvenster heeft
+                opgestoken van een verkeerd product, en die daarna bij <em>elk</em>
+                ingredient een product met zo'n woord erin weren. Stond er een woord
+                ten onrechte tussen &mdash; het was gewoon een normale variant, geen ander
+                product &mdash; dan haal je het hier weer weg.
+            </p>
+            <table class="recipe-table">
+                <thead>
+                    <tr>
+                        <th>Woord</th>
+                        <th class="col-hide">Keer geleerd</th>
+                        <th class="col-hide">Laatst gezien</th>
+                        <th class="col-actions"></th>
+                    </tr>
+                </thead>
+                <tbody id="dealWordTableBody">
+                    <?= renderDealExclusionWordTable($pdo) ?>
+                </tbody>
+            </table>
+            <?php if ($dealExclusionWords === []): ?>
+                <p class="hint">Nog geen woorden geleerd.</p>
+            <?php endif; ?>
+        </div>
+
+        <div class="card" style="margin-top:16px">
+            <div class="card-head">
+                <h2 id="dealExclusionCount"><?= count($dealExclusions) ?> uitgesloten producten</h2>
+            </div>
+            <p class="hint" style="margin-top:-10px">
+                Specifieke producten die je per ingredient hebt afgekeurd. Werkt alleen
+                op de levende kortingscache &mdash; een week die al op slot staat heeft een
+                bevroren momentopname en verandert hier niet door.
+            </p>
+            <table class="recipe-table">
+                <thead>
+                    <tr>
+                        <th>Ingrediënt</th>
+                        <th class="col-hide">Winkel</th>
+                        <th class="col-hide">Product</th>
+                        <th class="col-actions"></th>
+                    </tr>
+                </thead>
+                <tbody id="dealExclusionTableBody">
+                    <?= renderDealExclusionTable($pdo) ?>
+                </tbody>
+            </table>
+            <?php if ($dealExclusions === []): ?>
+                <p class="hint">Nog geen producten uitgesloten.</p>
+            <?php endif; ?>
+        </div>
     </section>
 
 </main>
