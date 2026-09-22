@@ -21,7 +21,7 @@ const DEALS_SETTING_CHECKED_AT = 'deals_checked_at';
 // van welk woord een ander product betekent (dat doet dealExtraWords()/de
 // aangeleerde woordenlijst, per klik op "klopt niet").
 const DEAL_NOISE_WORDS = [
-    'de', 'het', 'een', 'en', 'van', 'voor', 'bij', 'per', 'ca', 'circa',
+    'de', 'het', 'een', 'en', 'van', 'voor', 'bij', 'per', 'ca', 'circa', 'met',
     'stuk', 'stuks', 'g', 'gram', 'kg', 'ml', 'l', 'liter', 'el', 'tl',
     'pak', 'pakje', 'pot', 'bosje', 'blik', 'blikje', 'plak', 'plakken', 'x',
 ];

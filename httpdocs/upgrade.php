@@ -132,6 +132,16 @@ try {
          ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci'
     );
 
+    $insWord = $pdo->prepare('INSERT IGNORE INTO {deal_exclusion_word} (word) VALUES (?)');
+    $wordsAdded = 0;
+    foreach (seedDealExclusionWords() as $word) {
+        $insWord->execute([$word]);
+        $wordsAdded += $insWord->rowCount();
+    }
+    $log[] = $wordsAdded > 0
+        ? "Geleerde woorden voor kortingsmatching voorgeladen: <strong>$wordsAdded</strong>."
+        : 'Geleerde woorden voor kortingsmatching stonden al klaar.';
+
     $log[] = 'Aanbiedingen-tabellen staan klaar.';
 
     /* --- 2. bestaande recepten ophalen --- */

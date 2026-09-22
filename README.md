@@ -196,6 +196,8 @@ onderscheidt van het ingredient (bijvoorbeeld "gebraden") wordt onthouden
 en weert voortaan vergelijkbare producten bij **elk** ingredient, niet
 alleen dat ene. Eén keer "gebraden gehakt" afkeuren beschermt dus meteen
 ook "kipfilet", "spek" enzovoort tegen datzelfde soort verkeerde match.
+`upgrade.php` laadt hier een startset van voor, zodat je niet vanaf nul
+tegen dezelfde veelvoorkomende missers aanloopt.
 
 ### Bijstellen
 
