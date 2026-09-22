@@ -303,6 +303,7 @@ $recipeCount = (int)$pdo->query('SELECT COUNT(*) FROM {recipe} WHERE is_active =
                                             <?php if ($best !== null): ?>
                                                 <button type="button" class="deal-badge"
                                                         data-deal-name="<?= esc($item['name']) ?>"
+                                                        data-ingredient-id="<?= (int)$item['ingredient_id'] ?>"
                                                         data-deals="<?= esc(json_encode($deals, JSON_UNESCAPED_UNICODE)) ?>">
                                                     <?= esc($best['label']) ?><?= $extra > 0 ? ' +' . $extra : '' ?>
                                                 </button>

@@ -62,6 +62,7 @@ httpdocs/
 │   ├── servings.php
 │   ├── check.php
 │   ├── lock.php
+│   ├── deal_exclude.php
 │   ├── recipe.php
 │   └── admin_*.php
 ├── assets/
@@ -182,6 +183,14 @@ Reroll en de paginaweergave zelf checken nooit opnieuw bij prijsprofeet.nl
 `DEALS_REFRESH_HOURS` uur. Dat houdt het aantal aanroepen ruim onder hun
 rate limit.
 
+De zoek-api matcht op woorden, niet op producten: "gehakt" levert ook
+"Gebraden gehakt" op, en dat is een ander product. Zie je zo'n verkeerde
+match in het kortingsvenster, klik dan op **klopt niet, uitsluiten** bij
+dat product. Het verdwijnt meteen van de boodschappenlijst en komt ook bij
+een volgende verversing niet meer terug voor dat ingredient bij die
+winkel - een andere aanbieding bij diezelfde winkel kan later gewoon weer
+verschijnen.
+
 ### Bijstellen
 
 In `inc/config.php`:
@@ -241,7 +250,9 @@ weer aanzetten als de pot toch bijna leeg is.
 Wat doorgestreept staat gaat niet mee naar Bring.
 
 Staat een ingredient in de aanbieding, dan zie je er een label bij met de
-winkel — zie **Aanbiedingen** hierboven.
+winkel — zie **Aanbiedingen** hierboven. Die winkel gaat ook mee naar
+Bring (de prijs niet), zodat je ook daar kunt zien waar het voordeligst is
+en kunt kiezen of je ervoor naar die winkel gaat.
 
 ### Naar Bring!
 

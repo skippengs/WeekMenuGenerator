@@ -506,11 +506,12 @@ function shoppingList(PDO $pdo, int $weekId): array
     $list = [];
     foreach ($rows as $row) {
         $list[$row['category']][] = [
-            'name'    => $row['name'],
-            'unit'    => $row['unit'],
-            'amount'  => $row['total'] === null ? null : (float)$row['total'],
-            'checked' => isset($checked[$row['name']]),
-            'deals'   => $deals[(int)$row['id']] ?? [],
+            'name'          => $row['name'],
+            'ingredient_id' => (int)$row['id'],
+            'unit'          => $row['unit'],
+            'amount'        => $row['total'] === null ? null : (float)$row['total'],
+            'checked'       => isset($checked[$row['name']]),
+            'deals'         => $deals[(int)$row['id']] ?? [],
         ];
     }
 

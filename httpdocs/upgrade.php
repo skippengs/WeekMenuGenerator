@@ -106,6 +106,21 @@ try {
             PRIMARY KEY (week_id, ingredient_id, retailer)
          ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci'
     );
+    $hasColumn->execute([DB_PREFIX . 'deal', 'base_product_id']);
+    if ((int)$hasColumn->fetchColumn() === 0) {
+        $pdo->exec('ALTER TABLE {deal} ADD COLUMN base_product_id VARCHAR(64) NULL AFTER product_name');
+    }
+
+    $pdo->exec(
+        'CREATE TABLE IF NOT EXISTS {deal_exclusion} (
+            ingredient_id INT UNSIGNED NOT NULL,
+            retailer      VARCHAR(20)  NOT NULL,
+            product_key   VARCHAR(160) NOT NULL,
+            created_at    DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            PRIMARY KEY (ingredient_id, retailer, product_key)
+         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci'
+    );
+
     $log[] = 'Aanbiedingen-tabellen staan klaar.';
 
     /* --- 2. bestaande recepten ophalen --- */

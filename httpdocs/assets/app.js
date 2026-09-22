@@ -375,7 +375,7 @@
         return '€ ' + value.toFixed(2).replace('.', ',');
     }
 
-    function openDeal(name, deals) {
+    function openDeal(name, deals, ingredientId) {
         if (!dealModal) { return; }
 
         document.getElementById('dealTitle').textContent = name;
@@ -408,6 +408,24 @@
 
             li.appendChild(head);
             li.appendChild(product);
+
+            // Zelfde product, andere aanbieding: dit is geen "gehakt" maar
+            // "gebraden gehakt". Sluit het voortaan uit voor dit ingredient.
+            if (cfg.mayEditMenu) {
+                var foot = document.createElement('div');
+                foot.className = 'deal-list-foot';
+                var exclude = document.createElement('button');
+                exclude.type = 'button';
+                exclude.className = 'linkbtn linkbtn-danger';
+                exclude.textContent = 'klopt niet, uitsluiten';
+                exclude.setAttribute('data-exclude-deal', '1');
+                exclude.setAttribute('data-ingredient-id', ingredientId);
+                exclude.setAttribute('data-retailer', d.retailer);
+                exclude.setAttribute('data-product-key', d.product_key);
+                foot.appendChild(exclude);
+                li.appendChild(foot);
+            }
+
             list.appendChild(li);
         });
 
@@ -425,11 +443,35 @@
         var dealTrigger = e.target.closest('[data-deals]');
         if (dealTrigger) {
             e.preventDefault();
-            openDeal(dealTrigger.getAttribute('data-deal-name'), JSON.parse(dealTrigger.getAttribute('data-deals')));
+            openDeal(
+                dealTrigger.getAttribute('data-deal-name'),
+                JSON.parse(dealTrigger.getAttribute('data-deals')),
+                dealTrigger.getAttribute('data-ingredient-id')
+            );
         }
         if (e.target.closest('[data-close-deal]')) {
             e.preventDefault();
             closeDeal();
+        }
+
+        var excludeBtn = e.target.closest('[data-exclude-deal]');
+        if (excludeBtn) {
+            e.preventDefault();
+            excludeBtn.disabled = true;
+
+            postJson('api/deal_exclude.php', {
+                csrf: cfg.csrf,
+                ingredient_id: parseInt(excludeBtn.getAttribute('data-ingredient-id'), 10),
+                retailer: excludeBtn.getAttribute('data-retailer'),
+                product_key: excludeBtn.getAttribute('data-product-key')
+            }).then(function () {
+                // De boodschappenlijst zelf staat elders op de pagina en moet
+                // ook zonder deze deal verder - herladen is hier het simpelst.
+                window.location.reload();
+            }).catch(function (err) {
+                excludeBtn.disabled = false;
+                toast(err.message, true);
+            });
         }
     });
 

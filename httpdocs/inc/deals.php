@@ -45,6 +45,54 @@ function dealsApiGet(string $path, array $query): ?array
 }
 
 /**
+ * Identificeert een product zo stabiel mogelijk: het eigen id van
+ * prijsprofeet.nl als dat er is (blijft gelijk tussen scrapes, ook al
+ * verandert de datumtag in product_id), anders de productnaam zelf.
+ * Wordt aan de ene kant gebruikt om een uitsluiting op te slaan, aan de
+ * andere kant om te checken of een gevonden product daaraan matcht - dus
+ * moet exact hetzelfde blijven op beide plekken.
+ */
+function dealProductKey(?string $baseProductId, string $productName): string
+{
+    $baseProductId = trim((string)$baseProductId);
+    if ($baseProductId !== '') {
+        return 'id:' . $baseProductId;
+    }
+    return 'name:' . mb_strtolower(trim($productName), 'UTF-8');
+}
+
+/**
+ * Welke producten je zelf hebt afgekeurd voor dit ingredient (bijvoorbeeld
+ * "gebraden gehakt" onder "gehakt"), als [$retailer => [$productKey => true]].
+ */
+function fetchDealExclusions(PDO $pdo, int $ingredientId): array
+{
+    $stmt = $pdo->prepare('SELECT retailer, product_key FROM {deal_exclusion} WHERE ingredient_id = ?');
+    $stmt->execute([$ingredientId]);
+
+    $out = [];
+    foreach ($stmt as $row) {
+        $out[$row['retailer']][$row['product_key']] = true;
+    }
+    return $out;
+}
+
+/**
+ * Sluit een product uit voor dit ingredient/deze winkel ("klopt niet" in
+ * het kortingsvenster) en haalt de nu gecachte deal van die winkel meteen
+ * weg, zodat de badge niet pas bij de volgende refreshDeals() klopt.
+ */
+function excludeDeal(PDO $pdo, int $ingredientId, string $retailer, string $productKey): void
+{
+    $pdo->prepare(
+        'INSERT IGNORE INTO {deal_exclusion} (ingredient_id, retailer, product_key) VALUES (?, ?, ?)'
+    )->execute([$ingredientId, $retailer, $productKey]);
+
+    $pdo->prepare('DELETE FROM {deal} WHERE ingredient_id = ? AND retailer = ?')
+        ->execute([$ingredientId, $retailer]);
+}
+
+/**
  * Zoekt aanbiedingen voor een ingredient en houdt per winkel de goedkoopste
  * over. Geeft null terug als de aanroep zelf mislukte (dienst niet
  * bereikbaar) en een lege array als hij wel lukte maar er niets bruikbaars
@@ -53,9 +101,13 @@ function dealsApiGet(string $path, array $query): ?array
  *
  * De zoek-api matcht fuzzy: op "gehakt" komt ook "Go-Tan Gehakte knoflook"
  * mee. Daarom filteren we zelf op woordgrens, de ingredientnaam moet als
- * geheel in de productnaam voorkomen.
+ * geheel in de productnaam voorkomen. Dat vangt niet elk fout-positief:
+ * "Jumbo Gebraden Gehakt" bevat het woord "gehakt" evengoed, terwijl het
+ * een ander product is. Voor dat soort gevallen is er $exclusions - zelf
+ * aangevinkt via de kortingsknop "klopt niet" - dat hier per winkel wordt
+ * weggefilterd vóórdat de goedkoopste gekozen wordt.
  */
-function fetchDealsForIngredient(string $ingredientName): ?array
+function fetchDealsForIngredient(string $ingredientName, array $exclusions = []): ?array
 {
     $data = dealsApiGet('/search', [
         'q'                => $ingredientName,
@@ -74,9 +126,10 @@ function fetchDealsForIngredient(string $ingredientName): ?array
 
     $best = [];
     foreach ($data['results'] as $row) {
-        $retailer = (string)($row['retailer'] ?? '');
-        $name     = (string)($row['name'] ?? '');
-        $price    = $row['price'] ?? null;
+        $retailer       = (string)($row['retailer'] ?? '');
+        $name           = (string)($row['name'] ?? '');
+        $price          = $row['price'] ?? null;
+        $baseProductId  = isset($row['base_product_id']) ? (string)$row['base_product_id'] : null;
 
         if (!array_key_exists($retailer, DEALS_RETAILERS) || $price === null) {
             continue;
@@ -85,10 +138,16 @@ function fetchDealsForIngredient(string $ingredientName): ?array
             continue;
         }
 
+        $key = dealProductKey($baseProductId, $name);
+        if (isset($exclusions[$retailer][$key])) {
+            continue;
+        }
+
         if (!isset($best[$retailer]) || (float)$price < (float)$best[$retailer]['price']) {
             $best[$retailer] = [
                 'retailer'           => $retailer,
                 'product_name'       => $name,
+                'base_product_id'    => $baseProductId,
                 'price'              => (float)$price,
                 'original_price'     => isset($row['original_price']) ? (float)$row['original_price'] : null,
                 'savings_percentage' => isset($row['savings_percentage']) ? (float)$row['savings_percentage'] : null,
@@ -135,12 +194,13 @@ function refreshDeals(PDO $pdo, bool $force = false): void
 
     $del = $pdo->prepare('DELETE FROM {deal} WHERE ingredient_id = ?');
     $ins = $pdo->prepare(
-        'INSERT INTO {deal} (ingredient_id, retailer, product_name, price, original_price, savings_percentage, valid_until, checked_at)
-              VALUES (?, ?, ?, ?, ?, ?, ?, NOW())'
+        'INSERT INTO {deal} (ingredient_id, retailer, product_name, base_product_id, price, original_price, savings_percentage, valid_until, checked_at)
+              VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW())'
     );
 
     foreach ($names as $row) {
-        $deals = fetchDealsForIngredient($row['name']);
+        $exclusions = fetchDealExclusions($pdo, (int)$row['id']);
+        $deals      = fetchDealsForIngredient($row['name'], $exclusions);
         if ($deals === null) {
             // Aanroep mislukt voor dit ingredient: bestaande cache laten staan.
             continue;
@@ -149,7 +209,7 @@ function refreshDeals(PDO $pdo, bool $force = false): void
         $del->execute([$row['id']]);
         foreach ($deals as $d) {
             $ins->execute([
-                $row['id'], $d['retailer'], $d['product_name'], $d['price'],
+                $row['id'], $d['retailer'], $d['product_name'], $d['base_product_id'], $d['price'],
                 $d['original_price'], $d['savings_percentage'], $d['valid_until'],
             ]);
         }
@@ -182,6 +242,9 @@ function groupDealsByIngredient(PDOStatement $stmt): array
             'retailer'           => $row['retailer'],
             'label'               => DEALS_RETAILERS[$row['retailer']] ?? $row['retailer'],
             'product_name'        => $row['product_name'],
+            // Alleen bij levende deals (week_deal heeft geen base_product_id) -
+            // de uitsluitknop verschijnt toch alleen als de week nog niet op slot staat.
+            'product_key'         => dealProductKey($row['base_product_id'] ?? null, $row['product_name']),
             'price'                => (float)$row['price'],
             'original_price'      => $row['original_price'] !== null ? (float)$row['original_price'] : null,
             'savings_percentage'  => $row['savings_percentage'] !== null ? (float)$row['savings_percentage'] : null,
@@ -200,7 +263,7 @@ function liveDealsByIngredient(PDO $pdo, array $ingredientIds): array
 
     $in = implode(',', array_fill(0, count($ingredientIds), '?'));
     $stmt = $pdo->prepare(
-        "SELECT ingredient_id, retailer, product_name, price, original_price, savings_percentage, valid_until
+        "SELECT ingredient_id, retailer, product_name, base_product_id, price, original_price, savings_percentage, valid_until
            FROM {deal}
           WHERE ingredient_id IN ($in)
           ORDER BY savings_percentage DESC"

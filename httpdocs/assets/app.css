@@ -898,6 +898,11 @@ code {
     color: var(--text-soft);
 }
 
+.deal-list-foot {
+    margin-top: 4px;
+    text-align: right;
+}
+
 .modal-card-recipe .recipe-note:empty { display: none; }
 
 .detail-head {
