@@ -927,9 +927,11 @@
 
             postJson('api/admin_settings.php', {
                 csrf: cfg.csrf,
-                default_servings: parseInt(settingsForm.elements.default_servings.value, 10)
+                default_servings: parseInt(settingsForm.elements.default_servings.value, 10),
+                planning_days: parseInt(settingsForm.elements.planning_days.value, 10)
             }).then(function (data) {
                 settingsForm.elements.default_servings.value = data.value;
+                settingsForm.elements.planning_days.value = data.planning_days;
                 toast(data.notice);
             }).catch(function (err) {
                 toast(err.message, true);

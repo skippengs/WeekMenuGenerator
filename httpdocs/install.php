@@ -52,10 +52,11 @@ if (is_file(CONFIG_FILE)) {
  * Formulier verwerken
  * ------------------------------------------------------------------ */
 $form = [
-    'db_host'   => defined('DB_HOST')   ? DB_HOST   : 'localhost',
-    'db_name'   => defined('DB_NAME')   ? DB_NAME   : '',
-    'db_user'   => defined('DB_USER')   ? DB_USER   : '',
-    'db_prefix' => defined('DB_PREFIX') ? DB_PREFIX : '',
+    'db_host'       => defined('DB_HOST')   ? DB_HOST   : 'localhost',
+    'db_name'       => defined('DB_NAME')   ? DB_NAME   : '',
+    'db_user'       => defined('DB_USER')   ? DB_USER   : '',
+    'db_prefix'     => defined('DB_PREFIX') ? DB_PREFIX : '',
+    'planning_days' => 7,
 ];
 
 if (!$alreadyInstalled && $_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -67,10 +68,11 @@ if (!$alreadyInstalled && $_SERVER['REQUEST_METHOD'] === 'POST') {
     $form['db_host']   = trim((string)($_POST['db_host'] ?? 'localhost'));
     $form['db_name']   = trim((string)($_POST['db_name'] ?? ''));
     $form['db_user']   = trim((string)($_POST['db_user'] ?? ''));
-    $form['db_prefix'] = trim((string)($_POST['db_prefix'] ?? ''));
-    $dbPass            = (string)($_POST['db_pass'] ?? '');
-    $adminPass         = (string)($_POST['admin_pass'] ?? '');
-    $adminPass2        = (string)($_POST['admin_pass2'] ?? '');
+    $form['db_prefix']     = trim((string)($_POST['db_prefix'] ?? ''));
+    $form['planning_days'] = max(1, min(7, (int)($_POST['planning_days'] ?? 7) ?: 7));
+    $dbPass                = (string)($_POST['db_pass'] ?? '');
+    $adminPass             = (string)($_POST['admin_pass'] ?? '');
+    $adminPass2            = (string)($_POST['admin_pass2'] ?? '');
 
     if ($form['db_host'] === '') { $errors[] = 'Vul de databaseserver in (meestal localhost).'; }
     if ($form['db_name'] === '') { $errors[] = 'Vul de naam van de database in.'; }
@@ -349,6 +351,10 @@ if (!$alreadyInstalled && $_SERVER['REQUEST_METHOD'] === 'POST') {
                     "INSERT INTO `{$p}setting` (name, value) VALUES ('default_servings', '3')
                      ON DUPLICATE KEY UPDATE value = value"
                 )->execute();
+                $pdo->prepare(
+                    "INSERT INTO `{$p}setting` (name, value) VALUES ('planning_days', ?)
+                     ON DUPLICATE KEY UPDATE value = value"
+                )->execute([(string)$form['planning_days']]);
 
                 $pdo->commit();
                 $log[] = 'Toegevoegd: ' . count($recipes) . ' recepten en '
@@ -468,6 +474,17 @@ if (empty($_SESSION['csrf'])) {
                     andere site, vul dan bijvoorbeeld <code>weekmenu_</code> in &mdash;
                     de tabellen heten dan <code>weekmenu_recipe</code>. Vergeet het
                     liggende streepje aan het eind niet.
+                </p>
+            </div>
+
+            <div class="field">
+                <label for="planning_days">Aantal dagen om een gerecht voor te kiezen</label>
+                <input type="number" id="planning_days" name="planning_days" min="1" max="7"
+                       value="<?= esc((string)$form['planning_days']) ?>">
+                <p class="field-hint">
+                    Geteld vanaf maandag. Bij bijvoorbeeld 5 blijven zaterdag en
+                    zondag leeg in het weekmenu. Later aan te passen bij
+                    Instellingen in het admin paneel.
                 </p>
             </div>
 

@@ -1,7 +1,8 @@
 # Weekmenu
 
-Genereert elke week een dinermenu voor zes dagen. Vrijdag is junkfood-dag en
-wordt overgeslagen. Draait op gewone PHP-webhosting met MySQL.
+Genereert elke week een dinermenu, standaard voor zes dagen (het aantal
+dagen is instelbaar). Vrijdag is junkfood-dag en wordt overgeslagen. Draait
+op gewone PHP-webhosting met MySQL.
 
 ## Wat het doet
 
@@ -12,6 +13,8 @@ wordt overgeslagen. Draait op gewone PHP-webhosting met MySQL.
 - Boodschappenlijst van wat je nog moet halen
 - Klik op een gerecht voor de ingredienten, hoeveelheden en een korte bereiding
 - Aantal personen per dag; de boodschappenlijst telt dat vanzelf op
+- Aantal dagen waar een menu voor gemaakt wordt is instelbaar, bijvoorbeeld
+  een werkweek van vijf dagen zonder het weekend
 - Recept genoeg voor twee dagen? Zet "restjes" aan de knop, twee dagen later
 - Houdt bij het kiezen rekening met actuele aanbiedingen bij AH, Jumbo,
   Aldi en PLUS, en laat op de boodschappenlijst zien welk product in de
@@ -88,6 +91,8 @@ Ga naar `https://jouwdomein.nl/install.php`. Daar vul je in:
 - Databaseserver (bij mijndomein: `localhost`)
 - Naam van de database, gebruiker en wachtwoord — uit stap 1
 - Een voorvoegsel voor de tabellen, optioneel — zie hieronder
+- Aantal dagen waar het weekmenu een gerecht voor kiest, standaard 7 —
+  later aan te passen bij Instellingen, zie hieronder
 - Een adminwachtwoord dat je zelf kiest, minstens 8 tekens
 
 **Voorvoegsel.** Leeg laten mag: de tabellen heten dan `recipe`,
@@ -312,6 +317,15 @@ vorige week niet blijft hangen.
 
 De recepten zelf zijn geschreven voor vier personen; dat staat per recept
 en de app rekent het om.
+
+### Aantal dagen in het weekmenu
+
+Bij Instellingen (of tijdens het installeren) stel je in vanaf maandag
+voor hoeveel dagen een nieuw weekmenu een gerecht kiest, van 1 tot en met
+7. Bij bijvoorbeeld 5 blijven zaterdag en zondag leeg — geen kaart, geen
+boodschappen voor die dagen. Een week die je al eerder genereerde
+verandert niet mee als je deze instelling later aanpast; pas een nieuwe
+generatie van die week houdt zich aan de nieuwe waarde.
 
 Bij het toevoegen van een eigen recept zet je de hoeveelheid voorop:
 `400 g gehakt`, `2 teen knoflook`, `1 blik tomatenblokjes`. Een regel

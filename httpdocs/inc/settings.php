@@ -8,6 +8,7 @@ if (!defined('WEEKMENU')) { http_response_code(403); exit('Forbidden'); }
  */
 
 const SETTING_DEFAULT_SERVINGS = 'default_servings';
+const SETTING_PLANNING_DAYS    = 'planning_days';
 
 function getSetting(PDO $pdo, string $name, string $fallback = ''): string
 {
@@ -38,4 +39,17 @@ function defaultServings(PDO $pdo): int
 {
     $value = (int)getSetting($pdo, SETTING_DEFAULT_SERVINGS, '3');
     return max(1, min(20, $value ?: 3));
+}
+
+/**
+ * Aantal dagen, vanaf maandag, waar een nieuw weekmenu een gerecht voor
+ * kiest. De rest van de week krijgt gewoon geen kaart te zien. Een al
+ * gegenereerde week houdt zich aan het aantal dagen van dat moment, ook
+ * als deze instelling later verandert - zie de COUNT-opvragingen in
+ * generator.php in plaats van een hernieuwde aanroep van deze functie.
+ */
+function planningDays(PDO $pdo): int
+{
+    $value = (int)getSetting($pdo, SETTING_PLANNING_DAYS, '7');
+    return max(1, min(7, $value ?: 7));
 }

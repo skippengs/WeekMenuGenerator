@@ -25,6 +25,10 @@ $shopping = $week ? shoppingList($pdo, $week['id']) : [];
 $leftoverSourceDay  = [];
 $leftoverSuggestion = [];
 if ($week !== null) {
+    // Hoeveel dagen deze specifieke week echt heeft (kan korter zijn dan 7,
+    // en dat blijft zo ook als de instelling daarna weer verandert).
+    $weekDayCount = count($week['days']);
+
     foreach ($week['days'] as $di => $d) {
         if (!empty($d['is_leftover']) && $d['id'] !== null) {
             foreach ($week['days'] as $sdi => $sd) {
@@ -36,7 +40,7 @@ if ($week !== null) {
         }
 
         if ($d['id'] !== null && empty($d['is_leftover']) && !empty($d['makes_leftovers'])) {
-            $target = leftoverTargetDay($di);
+            $target = leftoverTargetDay($di, $weekDayCount);
             if ($target !== null && empty($week['days'][$target]['is_leftover'])) {
                 $leftoverSuggestion[$target] = ['source_day' => $di, 'name' => $d['name']];
             }
@@ -167,10 +171,11 @@ $recipeCount = (int)$pdo->query('SELECT COUNT(*) FROM {recipe} WHERE is_active =
 
         <section class="days" data-week-id="<?= (int)$week['id'] ?>">
             <?php foreach (DAY_NAMES as $i => $dayName): ?>
+                <?php if (!array_key_exists($i, $week['days'])) { continue; } ?>
                 <?php
-                $entry      = $week['days'][$i] ?? null;
+                $entry      = $week['days'][$i];
                 $isJunk     = $i === JUNK_DAY_INDEX;
-                $hasRecipe  = $entry && $entry['id'] !== null;
+                $hasRecipe  = $entry['id'] !== null;
                 $isLeftover = $hasRecipe && !empty($entry['is_leftover']);
                 ?>
                 <?php $dayServings = (int)($entry['servings'] ?? 3); ?>

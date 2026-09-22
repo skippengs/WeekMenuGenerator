@@ -67,7 +67,11 @@ try {
         "INSERT INTO {setting} (name, value) VALUES ('default_servings', '3')
          ON DUPLICATE KEY UPDATE value = value"
     );
-    $log[] = 'Instellingen staan klaar, standaard 3 personen.';
+    $pdo->exec(
+        "INSERT INTO {setting} (name, value) VALUES ('planning_days', '7')
+         ON DUPLICATE KEY UPDATE value = value"
+    );
+    $log[] = 'Instellingen staan klaar, standaard 3 personen en 7 dagen.';
 
     /* --- 1c. afvinklijst van de boodschappen --- */
     $pdo->exec(

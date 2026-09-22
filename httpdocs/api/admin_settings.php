@@ -23,16 +23,19 @@ if (!checkCsrf($input['csrf'] ?? null)) {
 }
 
 $value = max(1, min(20, (int)($input['default_servings'] ?? 3)));
+$days  = max(1, min(7, (int)($input['planning_days'] ?? 7)));
 
 try {
     $pdo = db();
     setSetting($pdo, SETTING_DEFAULT_SERVINGS, (string)$value);
+    setSetting($pdo, SETTING_PLANNING_DAYS, (string)$days);
 } catch (Throwable $e) {
     jsonOut(['error' => 'Opslaan mislukt'], 500);
 }
 
 jsonOut([
-    'ok'     => true,
-    'notice' => 'Standaard aantal personen staat nu op ' . $value . '.',
-    'value'  => $value,
+    'ok'            => true,
+    'notice'        => 'Instellingen opgeslagen.',
+    'value'         => $value,
+    'planning_days' => $days,
 ]);

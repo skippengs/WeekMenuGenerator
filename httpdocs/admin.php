@@ -101,6 +101,17 @@ $dealExclusions     = fetchDealExclusionsForAdmin($pdo);
                 </p>
             </div>
 
+            <div class="field">
+                <label for="f-planning-days">Aantal dagen om een gerecht voor te kiezen</label>
+                <input type="number" id="f-planning-days" name="planning_days"
+                       min="1" max="7" value="<?= (int)planningDays($pdo) ?>">
+                <p class="field-hint">
+                    Geteld vanaf maandag. Bij bijvoorbeeld 5 blijven zaterdag en
+                    zondag leeg in een nieuw weekmenu. Een al gegenereerde week
+                    verandert niet mee als je dit later aanpast.
+                </p>
+            </div>
+
             <button class="btn btn-primary" type="submit">Opslaan</button>
         </form>
     </section>

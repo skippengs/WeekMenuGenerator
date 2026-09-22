@@ -144,7 +144,7 @@ function weightedPick(array $candidates, bool $isWeekend): ?array
  * Kiest een recept voor een dag. Begint streng en laat stap voor stap
  * regels los, zodat je ook met 12 recepten nog een week gevuld krijgt.
  */
-function pickForDay(array $pool, int $dayIndex, array $usedIds, array $usedCats): ?array
+function pickForDay(array $pool, int $dayIndex, array $usedIds, array $usedCats, int $totalDays = 7): ?array
 {
     $isWeekend = isWeekendDay($dayIndex);
 
@@ -154,13 +154,14 @@ function pickForDay(array $pool, int $dayIndex, array $usedIds, array $usedCats)
     $newCat    = static fn(array $r): bool => !in_array($r['category'], $usedCats, true);
 
     // Restjes twee dagen later heeft geen zin meer als de week daarvoor
-    // geen ruimte overlaat (leftoverTargetDay() geeft dan null). Een
+    // geen ruimte overlaat (leftoverTargetDay() geeft dan null - ook als
+    // die ruimte er nooit was omdat de week korter is dan 7 dagen). Een
     // weekend-only gerecht mag dat nooit halen - hoort al alleen op
     // zaterdag/zondag - dus die krijgt hier geen streep.
     $leftoverOk = static fn(array $r): bool =>
         $r['weekend_only'] === 1
         || $r['makes_leftovers'] === 0
-        || leftoverTargetDay($dayIndex) !== null;
+        || leftoverTargetDay($dayIndex, $totalDays) !== null;
 
     $stages = [
         static fn(array $r): bool => $notUsed($r) && $dayOk($r) && $leftoverOk($r) && $cooledOff($r) && $newCat($r),
@@ -186,18 +187,22 @@ function pickForDay(array $pool, int $dayIndex, array $usedIds, array $usedCats)
  */
 function generateWeek(PDO $pdo, string $weekStart, array $pantryIds): int
 {
+    // Hoeveel dagen vanaf maandag krijgen een gerecht. De rest van de
+    // week krijgt geen menu_entry-rij en dus geen kaart te zien.
+    $totalDays = planningDays($pdo);
+
     $pool     = loadPool($pdo, $pantryIds, $weekStart);
     $usedIds  = [];
     $usedCats = [];
     $picks    = [];
 
-    for ($day = 0; $day < 7; $day++) {
+    for ($day = 0; $day < $totalDays; $day++) {
         if ($day === JUNK_DAY_INDEX) {
             $picks[$day] = null;
             continue;
         }
 
-        $pick = pickForDay($pool, $day, $usedIds, $usedCats);
+        $pick = pickForDay($pool, $day, $usedIds, $usedCats, $totalDays);
         if ($pick !== null) {
             $usedIds[]   = $pick['id'];
             $usedCats[]  = $pick['category'];
@@ -280,6 +285,17 @@ function rerollDay(PDO $pdo, int $weekId, int $dayIndex): ?array
         ? (json_decode($week['pantry_json'], true) ?: [])
         : [];
 
+    // Hoeveel dagen deze week echt heeft: de live instelling kan intussen
+    // veranderd zijn, dus we tellen de menu_entry-rijen van deze specifieke
+    // week in plaats van planningDays() opnieuw op te vragen.
+    $stmt = $pdo->prepare('SELECT COUNT(*) FROM {menu_entry} WHERE week_id = ?');
+    $stmt->execute([$weekId]);
+    $totalDays = (int)$stmt->fetchColumn();
+
+    if ($dayIndex >= $totalDays) {
+        return null;
+    }
+
     $pool = loadPool($pdo, $pantryIds, (string)$week['week_start']);
     $byId = array_column($pool, null, 'id');
 
@@ -315,7 +331,7 @@ function rerollDay(PDO $pdo, int $weekId, int $dayIndex): ?array
         $usedIds[] = $currentId;
     }
 
-    $pick = pickForDay($pool, $dayIndex, $usedIds, $usedCats);
+    $pick = pickForDay($pool, $dayIndex, $usedIds, $usedCats, $totalDays);
     if ($pick === null) {
         return null;
     }
@@ -324,9 +340,14 @@ function rerollDay(PDO $pdo, int $weekId, int $dayIndex): ?array
     // vrij gekozen recept. De knop in de UI voor zo'n dag is revertLeftover()
     // (terug naar leeg), maar deze weg blijft geldig als iets anders ooit
     // rerollDay() op een restjesdag aanroept.
-    $pdo->prepare(
+    $updated = $pdo->prepare(
         'UPDATE {menu_entry} SET recipe_id = ?, is_leftover = 0 WHERE week_id = ? AND day_index = ?'
-    )->execute([$pick['id'], $weekId, $dayIndex]);
+    );
+    $updated->execute([$pick['id'], $weekId, $dayIndex]);
+
+    if ($updated->rowCount() === 0) {
+        return null;
+    }
 
     // Was dit de brondag van een al aangewezen restjesdag, dan klopt die
     // niet meer - het gerecht waar hij restjes van zou zijn staat hier
@@ -366,12 +387,14 @@ function weekIsLockedByDate(PDO $pdo, string $weekStart): bool
 /**
  * Welke dag komt in aanmerking voor restjes van een recept dat op
  * $sourceDay gekookt is: vast twee dagen later, één voor één doorgeschoven
- * voorbij de junkfood-dag. Valt er binnen de week geen dag meer over, dan
- * null - dat recept is die week gewoon maar één keer op tafel geweest.
+ * voorbij de junkfood-dag. Valt er binnen de week geen dag meer over (of
+ * heeft de week door de "aantal dagen"-instelling sowieso geen dagen meer
+ * over), dan null - dat recept is die week gewoon maar één keer op tafel
+ * geweest.
  */
-function leftoverTargetDay(int $sourceDay): ?int
+function leftoverTargetDay(int $sourceDay, int $totalDays = 7): ?int
 {
-    for ($t = $sourceDay + 2; $t <= 6; $t++) {
+    for ($t = $sourceDay + 2; $t <= $totalDays - 1; $t++) {
         if ($t !== JUNK_DAY_INDEX) {
             return $t;
         }
@@ -389,7 +412,11 @@ function leftoverTargetDay(int $sourceDay): ?int
  */
 function assignLeftover(PDO $pdo, int $weekId, int $sourceDay, int $targetDay): ?array
 {
-    if ($targetDay === $sourceDay || leftoverTargetDay($sourceDay) !== $targetDay) {
+    $stmt = $pdo->prepare('SELECT COUNT(*) FROM {menu_entry} WHERE week_id = ?');
+    $stmt->execute([$weekId]);
+    $totalDays = (int)$stmt->fetchColumn();
+
+    if ($targetDay === $sourceDay || leftoverTargetDay($sourceDay, $totalDays) !== $targetDay) {
         return null;
     }
 
