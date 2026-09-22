@@ -227,6 +227,38 @@ if (!$alreadyInstalled && $_SERVER['REQUEST_METHOD'] === 'POST') {
                     CONSTRAINT `{$p}fk_me_week`   FOREIGN KEY (week_id)   REFERENCES `{$p}menu_week`(id) ON DELETE CASCADE,
                     CONSTRAINT `{$p}fk_me_recipe` FOREIGN KEY (recipe_id) REFERENCES `{$p}recipe`(id)    ON DELETE SET NULL
                 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci",
+
+            $p . 'deal' => "
+                CREATE TABLE IF NOT EXISTS `{$p}deal` (
+                    ingredient_id      INT UNSIGNED NOT NULL,
+                    retailer           VARCHAR(20)  NOT NULL,
+                    product_name       VARCHAR(160) NOT NULL,
+                    price              DECIMAL(6,2) NOT NULL,
+                    original_price     DECIMAL(6,2) NULL,
+                    savings_percentage DECIMAL(5,2) NULL,
+                    valid_until        DATE NULL,
+                    checked_at         DATETIME NOT NULL,
+                    PRIMARY KEY (ingredient_id, retailer),
+                    CONSTRAINT `{$p}fk_deal_ingredient` FOREIGN KEY (ingredient_id)
+                        REFERENCES `{$p}ingredient`(id) ON DELETE CASCADE
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci",
+
+            $p . 'week_deal' => "
+                CREATE TABLE IF NOT EXISTS `{$p}week_deal` (
+                    week_id            INT UNSIGNED NOT NULL,
+                    ingredient_id      INT UNSIGNED NOT NULL,
+                    retailer           VARCHAR(20)  NOT NULL,
+                    product_name       VARCHAR(160) NOT NULL,
+                    price              DECIMAL(6,2) NOT NULL,
+                    original_price     DECIMAL(6,2) NULL,
+                    savings_percentage DECIMAL(5,2) NULL,
+                    valid_until        DATE NULL,
+                    PRIMARY KEY (week_id, ingredient_id, retailer),
+                    CONSTRAINT `{$p}fk_wd_week`       FOREIGN KEY (week_id)
+                        REFERENCES `{$p}menu_week`(id) ON DELETE CASCADE,
+                    CONSTRAINT `{$p}fk_wd_ingredient` FOREIGN KEY (ingredient_id)
+                        REFERENCES `{$p}ingredient`(id) ON DELETE CASCADE
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci",
         ];
 
         try {

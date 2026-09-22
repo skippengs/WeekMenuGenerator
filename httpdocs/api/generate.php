@@ -7,6 +7,7 @@ require __DIR__ . '/../inc/db.php';
 require __DIR__ . '/../inc/helpers.php';
 require __DIR__ . '/../inc/auth.php';
 require __DIR__ . '/../inc/settings.php';
+require __DIR__ . '/../inc/deals.php';
 require __DIR__ . '/../inc/generator.php';
 
 startSession();
@@ -49,6 +50,14 @@ try {
 
     if ((int)$pdo->query('SELECT COUNT(*) FROM {recipe} WHERE is_active = 1')->fetchColumn() === 0) {
         jsonOut(['error' => 'Er staan nog geen recepten in de database.'], 422);
+    }
+
+    // Extraatje, geen vereiste: lukt het niet (dienst down, geen internet),
+    // dan genereert de week gewoon door zonder kortingsweging.
+    try {
+        refreshDeals($pdo);
+    } catch (Throwable $e) {
+        // Bewust niets doen.
     }
 
     $weekId = generateWeek($pdo, $week, $pantry);

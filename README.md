@@ -13,6 +13,9 @@ wordt overgeslagen. Draait op gewone PHP-webhosting met MySQL.
 - Klik op een gerecht voor de ingredienten, hoeveelheden en een korte bereiding
 - Aantal personen per dag; de boodschappenlijst telt dat vanzelf op
 - Recept genoeg voor twee dagen? Zet "restjes" aan de knop, twee dagen later
+- Houdt bij het kiezen rekening met actuele aanbiedingen bij AH, Jumbo,
+  Aldi en PLUS, en laat op de boodschappenlijst zien welk product in de
+  aanbieding is en bij welke winkel
 - 47 Nederlandse recepten om mee te beginnen, met bereiding
 - Kijken mag iedereen, wijzigen alleen na inloggen
 - Boodschappen afvinken wordt per week bewaard, dus op elk apparaat gelijk
@@ -72,6 +75,7 @@ httpdocs/
     ├── helpers.php
     ├── settings.php
     ├── generator.php
+    ├── deals.php
     ├── admin_helpers.php
     └── seed_data.php
 ```
@@ -152,6 +156,40 @@ defined('COOLDOWN_WEEKS') or define('COOLDOWN_WEEKS', 3);   // lager = meer herh
 defined('PANTRY_BOOST')   or define('PANTRY_BOOST',   0.9); // hoger = voorraad weegt zwaarder
 ```
 
+## Aanbiedingen
+
+Bij het genereren van een weekmenu checkt de app (best effort, hooguit
+eens per paar uur) of er actuele aanbiedingen zijn bij Albert Heijn,
+Jumbo, Aldi en PLUS. Dat gaat via de onofficiele, niet door ons gemaakte
+dienst [prijsprofeet.nl](https://www.prijsprofeet.nl/api) - geen sleutel
+nodig voor het gratis niveau. Een recept waarvan een kenmerkend ingredient
+nu in de aanbieding is krijgt een iets grotere kans om gekozen te worden,
+op dezelfde manier als voorraad dat al deed.
+
+Op de boodschappenlijst staat bij zo'n ingredient een label met de winkel
+(en bijvoorbeeld "+2" als het bij meer winkels in de aanbieding is); hover
+erover voor het product en de prijs.
+
+Is prijsprofeet.nl niet bereikbaar, dan genereert de app gewoon door
+zonder kortingsweging - dit is altijd een extraatje, nooit een vereiste.
+Gaat een week op slot (naar Bring), dan worden de kortingen van dat moment
+vastgelegd, zodat de boodschappenlijst blijft kloppen ook als je later
+zonder bereik in de winkel staat, of de actie inmiddels voorbij blijkt.
+
+Reroll en de paginaweergave zelf checken nooit opnieuw bij prijsprofeet.nl
+- alleen het genereren van een weekmenu doet dat, en dat hooguit eens per
+`DEALS_REFRESH_HOURS` uur. Dat houdt het aantal aanroepen ruim onder hun
+rate limit.
+
+### Bijstellen
+
+In `inc/config.php`:
+
+```php
+defined('DEALS_BOOST')         or define('DEALS_BOOST',         0.6);  // hoger = aanbieding weegt zwaarder
+defined('DEALS_REFRESH_HOURS') or define('DEALS_REFRESH_HOURS', 12);   // hoe vaak checken
+```
+
 ## Eigen recepten toevoegen
 
 Via `/admin.php`. Bij **Ingrediënten** vul je alleen de kenmerkende dingen
@@ -200,6 +238,9 @@ hoeveelheid erbij. Zo zie je wat je deze week nodig hebt en kun je het
 weer aanzetten als de pot toch bijna leeg is.
 
 Wat doorgestreept staat gaat niet mee naar Bring.
+
+Staat een ingredient in de aanbieding, dan zie je er een label bij met de
+winkel — zie **Aanbiedingen** hierboven.
 
 ### Naar Bring!
 

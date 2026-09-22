@@ -15,6 +15,8 @@
     --junk-soft:   #fbeade;
     --leftover:      #5b56c9;
     --leftover-soft: #eae9fa;
+    --deal:        #9a6a00;
+    --deal-soft:   #fbf0d6;
     --danger:      #a8322a;
     --radius:      12px;
     --shadow:      0 1px 2px rgba(0, 0, 0, .06), 0 4px 12px rgba(0, 0, 0, .04);
@@ -34,6 +36,8 @@
         --junk-soft:   #3a2a1e;
         --leftover:      #a6a1ec;
         --leftover-soft: #292750;
+        --deal:        #e0b13a;
+        --deal-soft:   #3a2f12;
         --danger:      #e28b83;
         --shadow:      0 1px 2px rgba(0, 0, 0, .3), 0 4px 12px rgba(0, 0, 0, .2);
     }
@@ -381,6 +385,20 @@ button.recipe-name:hover {
     color: var(--text-soft);
     text-decoration: line-through;
 }
+
+.deal-badge {
+    display: inline-block;
+    padding: 1px 7px;
+    border-radius: 999px;
+    background: var(--deal-soft);
+    color: var(--deal);
+    font-size: 11px;
+    font-weight: 700;
+    white-space: nowrap;
+    cursor: default;
+}
+
+.shopping-group label.is-done .deal-badge { opacity: .55; }
 
 /* ---------- voorraadvenster ---------- */
 

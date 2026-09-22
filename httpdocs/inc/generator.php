@@ -52,6 +52,12 @@ function loadPool(PDO $pdo, array $pantryIds, string $referenceWeek): array
         }
     }
 
+    // Welke recepten hebben nu een kenmerkend ingredient in de aanbieding.
+    // Komt uit de cache die refreshDeals() bijhoudt; staat die leeg (dienst
+    // nog niet gecheckt, of niet bereikbaar), dan is dit gewoon overal 0 en
+    // verandert er niets aan de gewichten.
+    $dealHits = dealHitCounts($pdo);
+
     foreach ($recipes as &$r) {
         $r['id']              = (int)$r['id'];
         $r['effort']          = (int)$r['effort'];
@@ -63,6 +69,7 @@ function loadPool(PDO $pdo, array $pantryIds, string $referenceWeek): array
             : null;
 
         $r['pantry_hits'] = $hits[$r['id']] ?? 0;
+        $r['deal_hits']   = $dealHits[$r['id']] ?? 0;
     }
     unset($r);
 
@@ -86,6 +93,12 @@ function recipeWeight(array $r, bool $isWeekend): float
     // recency-gewicht van een recept dat al maanden niet langs was.
     if ($r['pantry_hits'] > 0) {
         $w *= 1.0 + ($r['pantry_hits'] * PANTRY_BOOST);
+    }
+
+    // Zelfde opzet voor een kenmerkend ingredient dat nu in de aanbieding
+    // is bij AH, Jumbo, Aldi of PLUS.
+    if ($r['deal_hits'] > 0) {
+        $w *= 1.0 + ($r['deal_hits'] * DEALS_BOOST);
     }
 
     if ($r['effort'] >= 3) {
@@ -472,6 +485,7 @@ function shoppingList(PDO $pdo, int $weekId): array
           ORDER BY i.category, i.name'
     );
     $stmt->execute([$weekId]);
+    $rows = $stmt->fetchAll();
 
     // Wat er al in het karretje ligt.
     $checked = [];
@@ -481,13 +495,22 @@ function shoppingList(PDO $pdo, int $weekId): array
         $checked[$row['item']] = true;
     }
 
+    // Op slot: de kortingen van het moment dat de week naar Bring ging,
+    // ook als prijsprofeet.nl nu niet bereikbaar is of de actie voorbij
+    // blijkt. Nog open: gewoon de actuele cache.
+    $ingredientIds = array_map(static fn(array $r): int => (int)$r['id'], $rows);
+    $deals = weekIsLocked($pdo, $weekId)
+        ? weekDealsByIngredient($pdo, $weekId)
+        : liveDealsByIngredient($pdo, $ingredientIds);
+
     $list = [];
-    foreach ($stmt as $row) {
+    foreach ($rows as $row) {
         $list[$row['category']][] = [
             'name'    => $row['name'],
             'unit'    => $row['unit'],
             'amount'  => $row['total'] === null ? null : (float)$row['total'],
             'checked' => isset($checked[$row['name']]),
+            'deals'   => $deals[(int)$row['id']] ?? [],
         ];
     }
 

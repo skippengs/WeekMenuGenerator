@@ -56,6 +56,38 @@ defined('JUNK_DAY_INDEX') or define('JUNK_DAY_INDEX', 4);
 defined('JUNK_LABEL')     or define('JUNK_LABEL',     'Junkfood-dag');
 
 /* ---------------------------------------------------------------
+ * Aanbiedingen (prijsprofeet.nl) - optioneel, altijd best effort
+ * --------------------------------------------------------------- */
+
+// Basisadres van de (onofficiele) aanbiedingen-api.
+defined('DEALS_API_BASE') or define('DEALS_API_BASE', 'https://www.prijsprofeet.nl/api/v1');
+
+// Winkels om te checken: slug zoals prijsprofeet.nl ze noemt => label voor
+// op de boodschappenlijst.
+defined('DEALS_RETAILERS') or define('DEALS_RETAILERS', [
+    'albert_heijn' => 'AH',
+    'jumbo'        => 'Jumbo',
+    'aldi'         => 'Aldi',
+    'plus'         => 'PLUS',
+]);
+
+// Hoeveel zwaarder telt een recept per kenmerkend ingredient dat nu in de
+// aanbieding is. Zelfde opzet als PANTRY_BOOST: keer, niet plus.
+defined('DEALS_BOOST') or define('DEALS_BOOST', 0.6);
+
+// Hooguit eens in zoveel uur de aanbiedingen opnieuw ophalen, en alleen bij
+// het genereren van een weekmenu - niet bij elke paginaweergave.
+defined('DEALS_REFRESH_HOURS') or define('DEALS_REFRESH_HOURS', 12);
+
+// Timeout in seconden per aanroep. Kort, want dit mag het genereren van
+// een weekmenu nooit merkbaar vertragen.
+defined('DEALS_HTTP_TIMEOUT') or define('DEALS_HTTP_TIMEOUT', 4);
+
+// Zo weet prijsprofeet.nl wie er aanklopt bij een breaking change. Geen
+// persoonlijk adres hierin, dit gaat naar een dienst van een derde.
+defined('DEALS_USER_AGENT') or define('DEALS_USER_AGENT', 'Weekmenugenerator/1.0 (+https://weekmenu.skippyweb.nl)');
+
+/* ---------------------------------------------------------------
  * Foutmeldingen
  * --------------------------------------------------------------- */
 // Op de server staan fouten uit (bezoekers hoeven geen padnamen te zien).

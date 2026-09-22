@@ -16,6 +16,7 @@ require __DIR__ . '/inc/db.php';
 require __DIR__ . '/inc/helpers.php';
 require __DIR__ . '/inc/auth.php';
 require __DIR__ . '/inc/settings.php';
+require __DIR__ . '/inc/deals.php';
 require __DIR__ . '/inc/generator.php';
 
 startSession();
@@ -34,6 +35,11 @@ if ($week === null) {
 if ($week['locked_at'] === null) {
     $pdo->prepare('UPDATE {menu_week} SET locked_at = NOW() WHERE id = ?')
         ->execute([$week['id']]);
+
+    // Legt de kortingen van dit moment vast, zodat de boodschappenlijst
+    // blijft kloppen ook als prijsprofeet.nl straks niet bereikbaar is of
+    // de actie voorbij blijkt.
+    snapshotWeekDeals($pdo, $week['id']);
 }
 
 $scheme = empty($_SERVER['HTTPS']) ? 'http' : 'https';

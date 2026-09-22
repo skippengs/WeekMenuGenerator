@@ -7,6 +7,7 @@ require __DIR__ . '/inc/db.php';
 require __DIR__ . '/inc/helpers.php';
 require __DIR__ . '/inc/auth.php';
 require __DIR__ . '/inc/settings.php';
+require __DIR__ . '/inc/deals.php';
 require __DIR__ . '/inc/generator.php';
 
 startSession();
@@ -280,6 +281,19 @@ $recipeCount = (int)$pdo->query('SELECT COUNT(*) FROM {recipe} WHERE is_active =
                             <h3><?= esc(PANTRY_GROUP_LABELS[$group] ?? ucfirst($group)) ?></h3>
                             <ul>
                                 <?php foreach ($items as $item): ?>
+                                    <?php
+                                    // Beste aanbieding staat vooraan (shoppingList() sorteert op
+                                    // korting); erna staat hoeveel andere winkels hem ook hebben.
+                                    $deals = $item['deals'];
+                                    $best  = $deals[0] ?? null;
+                                    $extra = count($deals) - 1;
+
+                                    $dealTitle = $best !== null
+                                        ? $best['product_name'] . ' — '
+                                            . number_format($best['price'], 2, ',', '.') . ' bij ' . $best['label']
+                                            . ($extra > 0 ? ' (ook bij ' . $extra . ' andere winkel' . ($extra === 1 ? '' : 'en') . ')' : '')
+                                        : '';
+                                    ?>
                                     <li>
                                         <label class="<?= $item['checked'] ? 'is-done' : '' ?>">
                                             <input type="checkbox"
@@ -292,6 +306,11 @@ $recipeCount = (int)$pdo->query('SELECT COUNT(*) FROM {recipe} WHERE is_active =
                                                       data-amount="<?= $item['amount'] !== null ? esc((string)round($item['amount'], 4)) : '' ?>"
                                                       data-unit="<?= esc((string)$item['unit']) ?>"></span><?= esc($item['name']) ?>
                                             </span>
+                                            <?php if ($best !== null): ?>
+                                                <span class="deal-badge" title="<?= esc($dealTitle) ?>">
+                                                    <?= esc($best['label']) ?><?= $extra > 0 ? ' +' . $extra : '' ?>
+                                                </span>
+                                            <?php endif; ?>
                                         </label>
                                     </li>
                                 <?php endforeach; ?>

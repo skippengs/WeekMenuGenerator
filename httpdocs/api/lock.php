@@ -6,6 +6,7 @@ require __DIR__ . '/../inc/config.php';
 require __DIR__ . '/../inc/db.php';
 require __DIR__ . '/../inc/helpers.php';
 require __DIR__ . '/../inc/auth.php';
+require __DIR__ . '/../inc/deals.php';
 
 startSession();
 
@@ -32,6 +33,11 @@ try {
     $pdo = db();
     $pdo->prepare('UPDATE {menu_week} SET locked_at = ? WHERE id = ?')
         ->execute([$locked ? date('Y-m-d H:i:s') : null, $weekId]);
+
+    // Legt de kortingen van dit moment vast zodra de week op slot gaat.
+    if ($locked) {
+        snapshotWeekDeals($pdo, $weekId);
+    }
 } catch (Throwable $e) {
     jsonOut(['error' => 'Opslaan mislukt'], 500);
 }

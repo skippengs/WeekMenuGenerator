@@ -18,6 +18,7 @@ require __DIR__ . '/inc/config.php';
 require __DIR__ . '/inc/db.php';
 require __DIR__ . '/inc/helpers.php';
 require __DIR__ . '/inc/settings.php';
+require __DIR__ . '/inc/deals.php';
 require __DIR__ . '/inc/generator.php';
 
 $pdo     = db();

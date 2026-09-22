@@ -79,6 +79,35 @@ try {
     );
     $log[] = 'Afvinklijst staat klaar.';
 
+    /* --- 1d. aanbiedingen: levende cache en bevroren momentopname --- */
+    $pdo->exec(
+        'CREATE TABLE IF NOT EXISTS {deal} (
+            ingredient_id      INT UNSIGNED NOT NULL,
+            retailer           VARCHAR(20)  NOT NULL,
+            product_name       VARCHAR(160) NOT NULL,
+            price              DECIMAL(6,2) NOT NULL,
+            original_price     DECIMAL(6,2) NULL,
+            savings_percentage DECIMAL(5,2) NULL,
+            valid_until        DATE NULL,
+            checked_at         DATETIME NOT NULL,
+            PRIMARY KEY (ingredient_id, retailer)
+         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci'
+    );
+    $pdo->exec(
+        'CREATE TABLE IF NOT EXISTS {week_deal} (
+            week_id            INT UNSIGNED NOT NULL,
+            ingredient_id      INT UNSIGNED NOT NULL,
+            retailer           VARCHAR(20)  NOT NULL,
+            product_name       VARCHAR(160) NOT NULL,
+            price              DECIMAL(6,2) NOT NULL,
+            original_price     DECIMAL(6,2) NULL,
+            savings_percentage DECIMAL(5,2) NULL,
+            valid_until        DATE NULL,
+            PRIMARY KEY (week_id, ingredient_id, retailer)
+         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci'
+    );
+    $log[] = 'Aanbiedingen-tabellen staan klaar.';
+
     /* --- 2. bestaande recepten ophalen --- */
     $existing = [];
     foreach ($pdo->query('SELECT id, name, is_mine FROM {recipe}') as $row) {
