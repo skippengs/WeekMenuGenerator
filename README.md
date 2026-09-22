@@ -167,8 +167,9 @@ nu in de aanbieding is krijgt een iets grotere kans om gekozen te worden,
 op dezelfde manier als voorraad dat al deed.
 
 Op de boodschappenlijst staat bij zo'n ingredient een label met de winkel
-(en bijvoorbeeld "+2" als het bij meer winkels in de aanbieding is); hover
-erover voor het product en de prijs.
+(en bijvoorbeeld "+2" als het bij meer winkels in de aanbieding is); tik
+of klik erop voor een venster met het product, de winkel en de prijs bij
+elke winkel waar het in de aanbieding is.
 
 Is prijsprofeet.nl niet bereikbaar, dan genereert de app gewoon door
 zonder kortingsweging - dit is altijd een extraatje, nooit een vereiste.

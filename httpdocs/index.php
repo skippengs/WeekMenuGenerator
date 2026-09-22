@@ -287,12 +287,6 @@ $recipeCount = (int)$pdo->query('SELECT COUNT(*) FROM {recipe} WHERE is_active =
                                     $deals = $item['deals'];
                                     $best  = $deals[0] ?? null;
                                     $extra = count($deals) - 1;
-
-                                    $dealTitle = $best !== null
-                                        ? $best['product_name'] . ' — '
-                                            . number_format($best['price'], 2, ',', '.') . ' bij ' . $best['label']
-                                            . ($extra > 0 ? ' (ook bij ' . $extra . ' andere winkel' . ($extra === 1 ? '' : 'en') . ')' : '')
-                                        : '';
                                     ?>
                                     <li>
                                         <label class="<?= $item['checked'] ? 'is-done' : '' ?>">
@@ -307,9 +301,11 @@ $recipeCount = (int)$pdo->query('SELECT COUNT(*) FROM {recipe} WHERE is_active =
                                                       data-unit="<?= esc((string)$item['unit']) ?>"></span><?= esc($item['name']) ?>
                                             </span>
                                             <?php if ($best !== null): ?>
-                                                <span class="deal-badge" title="<?= esc($dealTitle) ?>">
+                                                <button type="button" class="deal-badge"
+                                                        data-deal-name="<?= esc($item['name']) ?>"
+                                                        data-deals="<?= esc(json_encode($deals, JSON_UNESCAPED_UNICODE)) ?>">
                                                     <?= esc($best['label']) ?><?= $extra > 0 ? ' +' . $extra : '' ?>
-                                                </span>
+                                                </button>
                                             <?php endif; ?>
                                         </label>
                                     </li>
@@ -410,6 +406,28 @@ $recipeCount = (int)$pdo->query('SELECT COUNT(*) FROM {recipe} WHERE is_active =
             <span class="hint" id="recipeHint"></span>
             <div class="modal-foot-right">
                 <button class="btn btn-ghost" data-close-recipe>Sluiten</button>
+            </div>
+        </footer>
+    </div>
+</div>
+
+<!-- Kortingsvenster ------------------------------------------------- -->
+<div class="modal" id="dealModal" hidden>
+    <div class="modal-backdrop" data-close-deal></div>
+
+    <div class="modal-card modal-card-deal" role="dialog" aria-modal="true" aria-labelledby="dealTitle">
+        <header class="modal-head">
+            <h2 id="dealTitle">&nbsp;</h2>
+            <button class="modal-x" data-close-deal aria-label="Sluiten">&times;</button>
+        </header>
+
+        <div class="modal-body">
+            <ul class="deal-list" id="dealList"></ul>
+        </div>
+
+        <footer class="modal-foot">
+            <div class="modal-foot-right">
+                <button class="btn btn-ghost" data-close-deal>Sluiten</button>
             </div>
         </footer>
     </div>

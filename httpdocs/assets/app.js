@@ -367,6 +367,78 @@
         }
     });
 
+    /* ---------- korting bekijken ---------- */
+
+    var dealModal = document.getElementById('dealModal');
+
+    function formatPrice(value) {
+        return '€ ' + value.toFixed(2).replace('.', ',');
+    }
+
+    function openDeal(name, deals) {
+        if (!dealModal) { return; }
+
+        document.getElementById('dealTitle').textContent = name;
+
+        var list = document.getElementById('dealList');
+        list.innerHTML = '';
+        deals.forEach(function (d) {
+            var li = document.createElement('li');
+
+            var head = document.createElement('div');
+            head.className = 'deal-list-head';
+            var store = document.createElement('span');
+            store.className = 'deal-list-store';
+            store.textContent = d.label;
+            var price = document.createElement('span');
+            price.className = 'deal-list-price';
+            price.textContent = formatPrice(d.price);
+            if (d.original_price && d.original_price > d.price) {
+                var was = document.createElement('span');
+                was.className = 'deal-list-was';
+                was.textContent = formatPrice(d.original_price);
+                price.appendChild(was);
+            }
+            head.appendChild(store);
+            head.appendChild(price);
+
+            var product = document.createElement('div');
+            product.className = 'deal-list-product';
+            product.textContent = d.product_name;
+
+            li.appendChild(head);
+            li.appendChild(product);
+            list.appendChild(li);
+        });
+
+        dealModal.hidden = false;
+        document.body.classList.add('modal-open');
+    }
+
+    function closeDeal() {
+        if (!dealModal) { return; }
+        dealModal.hidden = true;
+        document.body.classList.remove('modal-open');
+    }
+
+    document.addEventListener('click', function (e) {
+        var dealTrigger = e.target.closest('[data-deals]');
+        if (dealTrigger) {
+            e.preventDefault();
+            openDeal(dealTrigger.getAttribute('data-deal-name'), JSON.parse(dealTrigger.getAttribute('data-deals')));
+        }
+        if (e.target.closest('[data-close-deal]')) {
+            e.preventDefault();
+            closeDeal();
+        }
+    });
+
+    document.addEventListener('keydown', function (e) {
+        if (e.key === 'Escape' && dealModal && !dealModal.hidden) {
+            closeDeal();
+        }
+    });
+
     /* ---------- losse dag opnieuw ---------- */
 
     document.addEventListener('click', function (e) {
