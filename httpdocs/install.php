@@ -234,6 +234,7 @@ if (!$alreadyInstalled && $_SERVER['REQUEST_METHOD'] === 'POST') {
                     retailer           VARCHAR(20)  NOT NULL,
                     product_name       VARCHAR(160) NOT NULL,
                     base_product_id    VARCHAR(64)  NULL,
+                    brand              VARCHAR(60)  NULL,
                     price              DECIMAL(6,2) NOT NULL,
                     original_price     DECIMAL(6,2) NULL,
                     savings_percentage DECIMAL(5,2) NULL,
@@ -253,6 +254,13 @@ if (!$alreadyInstalled && $_SERVER['REQUEST_METHOD'] === 'POST') {
                     PRIMARY KEY (ingredient_id, retailer, product_key),
                     CONSTRAINT `{$p}fk_de_ingredient` FOREIGN KEY (ingredient_id)
                         REFERENCES `{$p}ingredient`(id) ON DELETE CASCADE
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci",
+
+            $p . 'deal_exclusion_word' => "
+                CREATE TABLE IF NOT EXISTS `{$p}deal_exclusion_word` (
+                    word      VARCHAR(40) NOT NULL PRIMARY KEY,
+                    hits      INT UNSIGNED NOT NULL DEFAULT 1,
+                    last_seen DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
                 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci",
 
             $p . 'week_deal' => "

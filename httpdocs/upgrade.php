@@ -110,6 +110,10 @@ try {
     if ((int)$hasColumn->fetchColumn() === 0) {
         $pdo->exec('ALTER TABLE {deal} ADD COLUMN base_product_id VARCHAR(64) NULL AFTER product_name');
     }
+    $hasColumn->execute([DB_PREFIX . 'deal', 'brand']);
+    if ((int)$hasColumn->fetchColumn() === 0) {
+        $pdo->exec('ALTER TABLE {deal} ADD COLUMN brand VARCHAR(60) NULL AFTER base_product_id');
+    }
 
     $pdo->exec(
         'CREATE TABLE IF NOT EXISTS {deal_exclusion} (
@@ -118,6 +122,13 @@ try {
             product_key   VARCHAR(160) NOT NULL,
             created_at    DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
             PRIMARY KEY (ingredient_id, retailer, product_key)
+         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci'
+    );
+    $pdo->exec(
+        'CREATE TABLE IF NOT EXISTS {deal_exclusion_word} (
+            word      VARCHAR(40) NOT NULL PRIMARY KEY,
+            hits      INT UNSIGNED NOT NULL DEFAULT 1,
+            last_seen DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
          ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci'
     );
 

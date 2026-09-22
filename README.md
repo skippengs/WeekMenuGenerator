@@ -191,6 +191,12 @@ een volgende verversing niet meer terug voor dat ingredient bij die
 winkel - een andere aanbieding bij diezelfde winkel kan later gewoon weer
 verschijnen.
 
+Zo'n klik leert de app ook iets algemeners: het woord dat het product
+onderscheidt van het ingredient (bijvoorbeeld "gebraden") wordt onthouden
+en weert voortaan vergelijkbare producten bij **elk** ingredient, niet
+alleen dat ene. Eén keer "gebraden gehakt" afkeuren beschermt dus meteen
+ook "kipfilet", "spek" enzovoort tegen datzelfde soort verkeerde match.
+
 ### Bijstellen
 
 In `inc/config.php`:
