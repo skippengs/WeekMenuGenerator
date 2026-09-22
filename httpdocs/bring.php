@@ -63,14 +63,23 @@ function bringAmount(?float $value, ?string $unit): string
 }
 
 // Alleen wat nog gehaald moet worden; afgevinkte dingen liggen al in de kar.
+// Staat het in de aanbieding, dan komt de winkel erachter in de naam. Bring
+// vertaalt alleen het herkende deel van de naam, dus dit stukje blijft
+// Nederlands ook als de app op een andere taal staat - maar zo zie je in
+// de app zelf waar het voordeligst is en kun je zelf kiezen of je gaat.
 $lines = [];
 foreach ($shopping as $items) {
     foreach ($items as $item) {
         if (!empty($item['checked'])) {
             continue;
         }
-        $amount  = bringAmount($item['amount'] ?? null, $item['unit'] ?? null);
-        $lines[] = trim($amount . ' ' . $item['name']);
+        $amount = bringAmount($item['amount'] ?? null, $item['unit'] ?? null);
+        $name   = $item['name'];
+        $best   = $item['deals'][0] ?? null;
+        if ($best !== null) {
+            $name .= ' (aanbieding bij ' . $best['label'] . ')';
+        }
+        $lines[] = trim($amount . ' ' . $name);
     }
 }
 
