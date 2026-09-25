@@ -43,6 +43,7 @@ jsonOut([
     'makes_leftovers' => (int)$recipe['makes_leftovers'],
     'is_mine'         => (int)$recipe['is_mine'],
     'preference'      => (int)$recipe['preference'],
+    'season'          => seasonMonths($recipe['season']),
     'notes'           => (string)$recipe['notes'],
     'steps'           => (string)$recipe['steps'],
     'url'             => (string)$recipe['url'],

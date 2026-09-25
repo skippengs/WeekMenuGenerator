@@ -267,9 +267,76 @@
         });
     }
 
+    /*
+     * Scherm aan laten zolang het recept openstaat: met vette handen tik je
+     * je telefoon niet wakker. Na wisselen van app laat de browser het slot
+     * los, dus bij terugkomen opnieuw aanvragen.
+     */
+    var wakeLock = null;
+
+    function keepAwake() {
+        if (!('wakeLock' in navigator) || wakeLock) { return; }
+        navigator.wakeLock.request('screen').then(function (lock) {
+            wakeLock = lock;
+            lock.addEventListener('release', function () { wakeLock = null; });
+        }).catch(function () {
+            // Batterijbesparing of geen https: dan maar niet.
+        });
+    }
+
+    document.addEventListener('visibilitychange', function () {
+        if (!document.hidden && recipeModal && !recipeModal.hidden) { keepAwake(); }
+    });
+
+    /* Ligt het vlees in de vriezer: de avond ervoor komt er een melding. */
+    var thawBtn = document.querySelector('[data-thaw-toggle]');
+
+    function showThaw(day) {
+        if (!thawBtn) { return; }
+        var el = day === null ? null : dayEl(day);
+        thawBtn.hidden = !el;
+        if (!el) { return; }
+        var on = el.getAttribute('data-thaw') === '1';
+        thawBtn.classList.toggle('is-active', on);
+        thawBtn.setAttribute('aria-pressed', on ? 'true' : 'false');
+        thawBtn.querySelector('[data-thaw-label]').textContent =
+            on ? 'Ligt in de vriezer' : 'Ligt in de vriezer?';
+    }
+
+    if (thawBtn) {
+        thawBtn.addEventListener('click', function () {
+            var day = openDay;
+            var el  = day === null ? null : dayEl(day);
+            if (!el) { return; }
+
+            var next = el.getAttribute('data-thaw') !== '1';
+            thawBtn.disabled = true;
+
+            postJson('api/thaw.php', {
+                csrf: cfg.csrf,
+                week_id: cfg.weekId,
+                day_index: day,
+                thaw: next
+            }).then(function () {
+                el.setAttribute('data-thaw', next ? '1' : '0');
+                var icon = el.querySelector('.day-thaw');
+                if (icon) { icon.hidden = !next; }
+                showThaw(day);
+                toast(next ? 'De avond ervoor krijg je een melding om het eruit te halen.' : 'Melding uitgezet.');
+            }).catch(function (err) {
+                toast(err.message, true);
+            }).then(function () {
+                thawBtn.disabled = false;
+            });
+        });
+    }
+
     function openRecipe(id, day) {
         openDay = day;
         if (!recipeModal) { return; }
+
+        keepAwake();
+        showThaw(day);
 
         document.getElementById('recipeTitle').textContent = 'Bezig met laden...';
         document.getElementById('recipeMeta').innerHTML = '';
@@ -340,6 +407,7 @@
     function closeRecipe() {
         if (!recipeModal) { return; }
         recipeModal.hidden = true;
+        if (wakeLock) { wakeLock.release().catch(function () {}); }
         if (!modal || modal.hidden) {
             document.body.classList.remove('modal-open');
         }
@@ -586,8 +654,9 @@
 
         var f = recipeEditForm.elements;
 
-        document.getElementById('recipeEditTitle').textContent = data ? 'Recept bewerken' : 'Nieuw recept';
-        document.getElementById('recipeEditSubmit').textContent = data ? 'Opslaan' : 'Toevoegen';
+        var isEdit = !!(data && data.id);
+        document.getElementById('recipeEditTitle').textContent = isEdit ? 'Recept bewerken' : 'Nieuw recept';
+        document.getElementById('recipeEditSubmit').textContent = isEdit ? 'Opslaan' : 'Toevoegen';
 
         recipeEditForm.reset();
         f.id.value              = data && data.id ? data.id : 0;
@@ -603,6 +672,11 @@
         f.makes_leftovers.checked  = !!(data && data.makes_leftovers);
         f.is_mine.checked          = data ? !!data.is_mine : true;
         f.preference.value         = data ? data.preference : 0;
+
+        var season = (data && data.season) || [];
+        Array.prototype.forEach.call(recipeEditForm.querySelectorAll('input[name="season"]'), function (cb) {
+            cb.checked = season.indexOf(parseInt(cb.value, 10)) !== -1;
+        });
 
         recipeEditModal.hidden = false;
         document.body.classList.add('modal-open');
@@ -805,7 +879,11 @@
                 weekend_only: f.weekend_only.checked,
                 makes_leftovers: f.makes_leftovers.checked,
                 is_mine: f.is_mine.checked,
-                preference: parseInt(f.preference.value, 10) || 0
+                preference: parseInt(f.preference.value, 10) || 0,
+                season: Array.prototype.map.call(
+                    recipeEditForm.querySelectorAll('input[name="season"]:checked'),
+                    function (cb) { return parseInt(cb.value, 10); }
+                )
             }).then(function (data) {
                 applyAdminData(data);
                 closeRecipeEdit();
@@ -884,6 +962,253 @@
                     deleteExclusionBtn.disabled = false;
                     toast(err.message, true);
                 });
+        }
+    });
+
+    /* ---------- admin: recept importeren van een link ---------- */
+
+    /*
+     * De server haalt het recept op en doet per ingrediëntregel een
+     * voorstel (zie inc/import.php). Hier kies je per regel wat het bij ons
+     * wordt; daarna gaat alles het gewone receptvenster in, zodat je het
+     * nog kunt nakijken voor het opslaan.
+     */
+
+    var importModal = document.getElementById('importModal');
+    var importList  = document.getElementById('importList');
+    var importData  = null;
+
+    var IMPORT_UNITS = ['', 'g', 'kg', 'ml', 'l', 'el', 'tl', 'teen', 'blik', 'pak', 'pot', 'bosje', 'snuf', 'plak', 'zak'];
+
+    function el(tag, className, text) {
+        var node = document.createElement(tag);
+        if (className) { node.className = className; }
+        if (text !== undefined) { node.textContent = text; }
+        return node;
+    }
+
+    function option(value, label) {
+        var o = el('option', '', label);
+        o.value = value;
+        return o;
+    }
+
+    function formatImportAmount(value) {
+        return value === null || value === undefined ? '' : String(Math.round(value * 100) / 100).replace('.', ',');
+    }
+
+    function importRow(line, ingredients) {
+        var li = el('li', 'import-row');
+
+        var raw = el('div', 'import-raw', line.raw);
+        if (line.learned) { raw.appendChild(el('span', 'chip chip-soft', 'onthouden')); }
+        li.appendChild(raw);
+
+        var pick = el('div', 'import-pick');
+
+        var amount = el('input', 'import-amount');
+        amount.type = 'text';
+        amount.inputMode = 'decimal';
+        amount.value = formatImportAmount(line.amount);
+        amount.setAttribute('aria-label', 'Hoeveelheid');
+
+        var unit = el('select', 'import-unit');
+        unit.setAttribute('aria-label', 'Eenheid');
+        IMPORT_UNITS.forEach(function (u) { unit.appendChild(option(u, u || '—')); });
+        unit.value = line.unit || '';
+
+        var select = el('select', 'import-ingredient');
+        select.setAttribute('aria-label', 'Wordt bij ons');
+        if (line.candidates.length) {
+            var best = el('optgroup');
+            best.label = 'Voorstel';
+            line.candidates.forEach(function (c) { best.appendChild(option(c.id, c.name)); });
+            select.appendChild(best);
+        }
+        select.appendChild(option('new', '+ Nieuw ingrediënt'));
+        select.appendChild(option('skip', 'Niet meenemen'));
+        var all = el('optgroup');
+        all.label = 'Alle ingrediënten';
+        ingredients.forEach(function (i) { all.appendChild(option(i.id, i.name)); });
+        select.appendChild(all);
+        select.value = String(line.choice);
+
+        var newName = el('input', 'import-new');
+        newName.type = 'text';
+        newName.maxLength = 80;
+        newName.value = line.new_name;
+        newName.setAttribute('aria-label', 'Naam van het nieuwe ingrediënt');
+
+        function sync() {
+            li.classList.toggle('is-skip', select.value === 'skip');
+            li.classList.toggle('is-new', select.value === 'new');
+            newName.hidden = select.value !== 'new';
+        }
+        select.addEventListener('change', sync);
+        sync();
+
+        pick.appendChild(amount);
+        pick.appendChild(unit);
+        pick.appendChild(select);
+        pick.appendChild(newName);
+        li.appendChild(pick);
+
+        li._import = { line: line, amount: amount, unit: unit, select: select, newName: newName };
+        return li;
+    }
+
+    var importPaste = document.getElementById('importPaste');
+    var importUrl   = '';
+
+    /* Stap 1 (zelf plakken) of stap 2 (koppelen) laten zien. */
+    function importStep(paste) {
+        importPaste.hidden = !paste;
+        Array.prototype.forEach.call(importModal.querySelectorAll('[data-import-step]'), function (node) {
+            node.hidden = paste;
+        });
+        importModal.hidden = false;
+        document.body.classList.add('modal-open');
+    }
+
+    function openPaste(message) {
+        importPaste.reset();
+        document.getElementById('importTitle').textContent = 'Zelf plakken';
+        importStep(true);
+        toast(message);
+        document.getElementById('f-paste-name').focus();
+    }
+
+    if (importPaste) {
+        importPaste.addEventListener('submit', function (e) {
+            e.preventDefault();
+            var btn = importPaste.querySelector('button[type="submit"]');
+            var f   = importPaste.elements;
+            btn.disabled = true;
+
+            postJson('api/admin_import.php', {
+                csrf: cfg.csrf,
+                action: 'paste',
+                url: importUrl,
+                name: f.name.value,
+                servings: parseInt(f.servings.value, 10) || 4,
+                ingredients: f.ingredients.value,
+                steps: f.steps.value
+            }).then(openImport)
+              .catch(function (err) { toast(err.message, true); })
+              .then(function () { btn.disabled = false; });
+        });
+    }
+
+    function openImport(data) {
+        importData = data;
+        document.getElementById('importTitle').textContent = data.name || 'Ingrediënten koppelen';
+        importStep(false);
+        importList.innerHTML = '';
+        data.lines.forEach(function (line) { importList.appendChild(importRow(line, data.ingredients)); });
+    }
+
+    function closeImport() {
+        if (!importModal) { return; }
+        importModal.hidden = true;
+        document.body.classList.remove('modal-open');
+    }
+
+    function confirmImport() {
+        var names   = {};
+        importData.ingredients.forEach(function (i) { names[i.id] = i.name; });
+
+        var lines   = [];
+        var byName  = {};
+        var choices = [];
+
+        Array.prototype.forEach.call(importList.children, function (li) {
+            var r      = li._import;
+            var choice = r.select.value;
+
+            if (choice === 'skip') {
+                choices.push({ alias: r.line.name, ingredient_id: null });
+                return;
+            }
+
+            var name = choice === 'new' ? r.newName.value.trim().toLowerCase() : names[choice];
+            if (!name) { return; }
+            if (choice !== 'new') {
+                choices.push({ alias: r.line.name, ingredient_id: parseInt(choice, 10) });
+            }
+
+            var amount = parseFloat(r.amount.value.replace(',', '.'));
+            amount = isNaN(amount) ? null : amount;
+            var unit = amount === null ? '' : r.unit.value;
+
+            // Twee regels, zelfde ingrediënt ("1 ui" en "1 rode ui" => ui):
+            // optellen als de eenheid klopt, anders telt de eerste.
+            if (byName[name]) {
+                var prev = byName[name];
+                if (prev.unit === unit && prev.amount !== null && amount !== null) {
+                    prev.amount += amount;
+                }
+                return;
+            }
+            byName[name] = { name: name, amount: amount, unit: unit };
+            lines.push(byName[name]);
+        });
+
+        if (choices.length) {
+            postJson('api/admin_import.php', { csrf: cfg.csrf, action: 'learn', choices: choices })
+                .catch(function () { /* niet onthouden is geen ramp */ });
+        }
+
+        var text = lines.map(function (l) {
+            return [formatImportAmount(l.amount), l.unit, l.name].filter(Boolean).join(' ');
+        }).join('\n');
+
+        closeImport();
+        openRecipeEdit({
+            id: 0,
+            name: importData.name,
+            category: importData.category,
+            effort: importData.effort,
+            servings: importData.servings,
+            ingredients: text,
+            steps: importData.steps,
+            notes: '',
+            url: importData.url,
+            is_mine: 1,
+            preference: 0,
+            season: []
+        });
+    }
+
+    document.addEventListener('click', function (e) {
+        var start = e.target.closest('[data-import-recipe]');
+        if (start) {
+            e.preventDefault();
+            var url = prompt('Link naar het recept (Leukerecepten, 24Kitchen, Jumbo, ...):');
+            if (!url) { return; }
+
+            importUrl = url.trim();
+            start.disabled = true;
+            postJson('api/admin_import.php', { csrf: cfg.csrf, action: 'fetch', url: importUrl })
+                .then(function (data) {
+                    if (data.paste) { openPaste(data.message); } else { openImport(data); }
+                })
+                .catch(function (err) { toast(err.message, true); })
+                .then(function () { start.disabled = false; });
+            return;
+        }
+        if (e.target.closest('[data-close-import]')) {
+            e.preventDefault();
+            closeImport();
+        }
+        if (e.target.closest('[data-import-confirm]')) {
+            e.preventDefault();
+            confirmImport();
+        }
+    });
+
+    document.addEventListener('keydown', function (e) {
+        if (e.key === 'Escape' && importModal && !importModal.hidden) {
+            closeImport();
         }
     });
 

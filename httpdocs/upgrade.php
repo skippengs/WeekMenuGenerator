@@ -42,6 +42,8 @@ try {
         ['{menu_entry}',        'menu_entry',        'is_leftover', 'ALTER TABLE {menu_entry} ADD COLUMN is_leftover TINYINT(1) NOT NULL DEFAULT 0 AFTER is_junkfood'],
         ['{menu_week}',         'menu_week',         'locked_at', 'ALTER TABLE {menu_week} ADD COLUMN locked_at DATETIME NULL'],
         ['{recipe}',            'recipe',            'preference', 'ALTER TABLE {recipe} ADD COLUMN preference TINYINT NOT NULL DEFAULT 0 AFTER makes_leftovers'],
+        ['{recipe}',            'recipe',            'season',   'ALTER TABLE {recipe} ADD COLUMN season VARCHAR(40) NULL AFTER preference'],
+        ['{menu_entry}',        'menu_entry',        'thaw',     'ALTER TABLE {menu_entry} ADD COLUMN thaw TINYINT(1) NOT NULL DEFAULT 0 AFTER is_leftover'],
     ];
 
     $addedColumns = [];
@@ -56,6 +58,20 @@ try {
     $log[] = $addedColumns === []
         ? 'Alle kolommen stonden al klaar.'
         : 'Kolommen toegevoegd: <code>' . implode('</code>, <code>', $addedColumns) . '</code>.';
+
+    // Seizoenen alleen de eerste keer invullen, als de kolom net bestaat.
+    // Daarna zijn ze van jou; een volgende upgrade laat ze met rust. Op
+    // naam, dus ook als je een meegeleverd recept als eigen hebt gemarkeerd.
+    if (in_array('season', $addedColumns, true)) {
+        $setSeason = $pdo->prepare('UPDATE {recipe} SET season = ? WHERE name = ?');
+        $seasoned  = 0;
+        foreach (seedSeasons() as $name => $season) {
+            $setSeason->execute([$season, $name]);
+            $seasoned += $setSeason->rowCount();
+        }
+        $log[] = "Seizoen ingevuld bij <strong>$seasoned</strong> recepten (stamppot in de winter, enz.). "
+               . 'Aanpassen kan per recept onder Recepten beheren.';
+    }
 
     /* --- 1b. tabel voor instellingen --- */
     $pdo->exec(
@@ -185,6 +201,17 @@ try {
                . 'waarmee je tot nu toe inlogde. Maak onder Gebruikers je eigen accounts aan.';
     }
     $log[] = 'Gebruikers en meldingen staan klaar.';
+
+    /* --- 1f. geleerde koppelingen bij het importeren van recepten --- */
+    $pdo->exec(
+        'CREATE TABLE IF NOT EXISTS {ingredient_alias} (
+            alias         VARCHAR(80)  NOT NULL PRIMARY KEY,
+            ingredient_id INT UNSIGNED NULL,
+            CONSTRAINT `' . DB_PREFIX . 'fk_alias_ingredient` FOREIGN KEY (ingredient_id)
+                REFERENCES `' . DB_PREFIX . 'ingredient`(id) ON DELETE CASCADE
+         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci'
+    );
+    $log[] = 'Tabel voor het importeren van recepten staat klaar.';
 
     /* --- 2. bestaande recepten ophalen --- */
     $existing = [];

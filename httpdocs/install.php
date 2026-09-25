@@ -163,6 +163,7 @@ if (!$alreadyInstalled && $_SERVER['REQUEST_METHOD'] === 'POST') {
                     weekend_only TINYINT(1)    NOT NULL DEFAULT 0,
                     makes_leftovers TINYINT(1) NOT NULL DEFAULT 0,
                     preference   TINYINT       NOT NULL DEFAULT 0,
+                    season       VARCHAR(40)   NULL,
                     servings     TINYINT UNSIGNED NOT NULL DEFAULT 4,
                     notes        TEXT          NULL,
                     steps        TEXT          NULL,
@@ -229,6 +230,7 @@ if (!$alreadyInstalled && $_SERVER['REQUEST_METHOD'] === 'POST') {
                     recipe_id   INT UNSIGNED NULL,
                     is_junkfood TINYINT(1)   NOT NULL DEFAULT 0,
                     is_leftover TINYINT(1)   NOT NULL DEFAULT 0,
+                    thaw        TINYINT(1)   NOT NULL DEFAULT 0,
                     servings    TINYINT UNSIGNED NOT NULL DEFAULT 3,
                     UNIQUE KEY uniq_week_day (week_id, day_index),
                     KEY idx_recipe (recipe_id),
@@ -250,6 +252,14 @@ if (!$alreadyInstalled && $_SERVER['REQUEST_METHOD'] === 'POST') {
                     checked_at         DATETIME NOT NULL,
                     PRIMARY KEY (ingredient_id, retailer),
                     CONSTRAINT `{$p}fk_deal_ingredient` FOREIGN KEY (ingredient_id)
+                        REFERENCES `{$p}ingredient`(id) ON DELETE CASCADE
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci",
+
+            $p . 'ingredient_alias' => "
+                CREATE TABLE IF NOT EXISTS `{$p}ingredient_alias` (
+                    alias         VARCHAR(80)  NOT NULL PRIMARY KEY,
+                    ingredient_id INT UNSIGNED NULL,
+                    CONSTRAINT `{$p}fk_alias_ingredient` FOREIGN KEY (ingredient_id)
                         REFERENCES `{$p}ingredient`(id) ON DELETE CASCADE
                 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci",
 
@@ -354,8 +364,8 @@ if (!$alreadyInstalled && $_SERVER['REQUEST_METHOD'] === 'POST') {
                 }
 
                 $insRec = $pdo->prepare(
-                    "INSERT INTO `{$p}recipe` (name, category, effort, weekend_only, servings, notes, steps, url, is_mine)
-                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0)"
+                    "INSERT INTO `{$p}recipe` (name, category, effort, weekend_only, servings, notes, steps, url, season, is_mine)
+                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 0)"
                 );
                 $insLink = $pdo->prepare(
                     "INSERT IGNORE INTO `{$p}recipe_ingredient` (recipe_id, ingredient_id, is_key, amount, unit)
@@ -366,11 +376,12 @@ if (!$alreadyInstalled && $_SERVER['REQUEST_METHOD'] === 'POST') {
                 );
 
                 $recipes = seedRecipes();
+                $seasons = seedSeasons();
                 foreach ($recipes as $r) {
                     $insRec->execute([
                         $r['name'], $r['category'], $r['effort'], $r['weekend_only'],
                         $r['servings'] ?? 4, $r['notes'] ?? null, $r['steps'] ?? null,
-                        $r['url'] ?? null,
+                        $r['url'] ?? null, $seasons[$r['name']] ?? null,
                     ]);
                     $recipeId = (int)$pdo->lastInsertId();
 

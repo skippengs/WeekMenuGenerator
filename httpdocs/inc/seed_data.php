@@ -765,3 +765,36 @@ function seedRecipes(): array
         ],
     ];
 }
+
+/**
+ * Seizoen per meegeleverd recept: maanden (1-12) waarin het in de loting
+ * mag. Niet genoemd = het hele jaar. Wordt eenmalig gezet door install.php
+ * en door upgrade.php op het moment dat de kolom erbij komt; daarna is het
+ * van jou en pas je het aan in Recepten beheren.
+ */
+function seedSeasons(): array
+{
+    $winter = '1,2,3,10,11,12';            // oktober t/m maart
+    $koud   = '1,2,3,4,9,10,11,12';        // september t/m april
+    $zomer  = '5,6,7,8,9';                 // mei t/m september
+
+    return [
+        'Boerenkoolstamppot met rookworst'  => $winter,
+        'Hutspot met klapstuk'              => $winter,
+        'Zuurkoolstamppot met spek'         => $winter,
+        'Andijviestamppot'                  => $koud,
+        'Spinaziestamppot met ei'           => $koud,
+        'Erwtensoep met roggebrood'         => $winter,
+        'Hachee met rode kool'              => $winter,
+        'Draadjesvlees met aardappelen'     => $winter,
+        'Saucijzen met zuurkool'            => $winter,
+        'Rode kool met appeltjes en worst'  => $winter,
+        'Spruitjes met aardappelen en spek' => $winter,
+        'Witlof met ham en kaas uit de oven' => $winter,
+        'Bruine bonen met spek'             => $koud,
+        'Kapucijners met spek en zilveruitjes' => $koud,
+        'Groentesoep met balletjes'         => $koud,
+        'Tonijnpasta met courgette'         => $zomer,
+        'Hamburgers met salade en aardappelpartjes' => $zomer,
+    ];
+}

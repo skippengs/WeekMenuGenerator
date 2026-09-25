@@ -26,6 +26,11 @@ op gewone PHP-webhosting met MySQL.
 - Exportknop zet de lijst in de Bring! app
 - Klokje per dag: wanneer stond dit gerecht vorige keer op tafel
 - Recepten als favoriet of "zelden" markeren
+- Seizoen per recept: stamppot en erwtensoep alleen in de koude maanden
+- Recept importeren van een link (Leukerecepten, 24Kitchen, ...), met een
+  venster om de ingrediënten aan je eigen lijst te koppelen
+- "Ligt in de vriezer": de avond ervoor een melding om het eruit te halen
+- Scherm blijft aan zolang een recept openstaat
 - Pushmeldingen op je telefoon (zie **Meldingen**)
 - Delen, afdrukken en een back-up van de hele database
 
@@ -60,7 +65,7 @@ httpdocs/
 ├── bring.php
 ├── bring-export.php
 ├── backup.php
-├── cron.php         ← herinnering, via Geplande taken (zie Meldingen)
+├── cron.php         ← meldingen, dagelijks via Geplande taken (zie Meldingen)
 ├── install.php      ← weghalen na stap 4
 ├── manifest.json
 ├── sw.js
@@ -76,6 +81,7 @@ httpdocs/
 │   ├── recipe.php
 │   ├── checks.php
 │   ├── push.php
+│   ├── thaw.php
 │   └── admin_*.php
 ├── assets/
 │   ├── app.css
@@ -91,6 +97,7 @@ httpdocs/
     ├── deals.php
     ├── push.php
     ├── admin_helpers.php
+    ├── import.php
     └── seed_data.php
 ```
 
@@ -159,7 +166,9 @@ Elk recept krijgt een gewicht, en er wordt geloot met dat gewicht als kans.
 | Uitgebreid recept in het weekend | Gewicht × 1,4 |
 
 Daarnaast komt elke soort (pasta, rijst, stamppot…) hoogstens één keer per
-week voor.
+week voor, en een recept met een seizoen alleen in die maanden. De maand
+van de donderdag telt, dus een week die over de maandgrens loopt hoort bij
+de maand met de meeste dagen.
 
 Heb je te weinig recepten om aan al die regels te voldoen, dan laat de
 generator ze stap voor stap los in plaats van een lege dag te tonen. Met
@@ -254,6 +263,35 @@ Bij **Hoe vaak** kies je *Favoriet* (komt vaker langs) of *Zelden* (komt
 minder vaak langs). Helemaal niet meer? Pauzeer het recept. In de tabel
 zie je per recept wanneer het voor het laatst op tafel stond.
 
+Bij **Seizoen** vink je de maanden aan waarin het recept mag langskomen;
+niets aangevinkt is het hele jaar. De meegeleverde winterkost (stamppotten,
+erwtensoep, hachee, ...) staat al op oktober t/m maart. In de tabel zie je
+het seizoen als bijvoorbeeld `okt-mrt`.
+
+### Importeren van een link
+
+Met **Importeer** plak je de link van een recept op een receptensite. De
+app leest het recept zoals de site het voor Google klaarzet (schema.org
+in JSON-LD): naam, aantal personen, ingrediënten, bereiding en ongeveer
+hoeveel werk het is. Daarna krijg je per ingrediënt te zien wat de site
+schrijft en wat het bij ons wordt:
+
+- een bestaand ingrediënt (de beste gok staat al klaar, `rundergehakt`
+  wordt `gehakt`, `2 dl kookroom` wordt `200 ml room`);
+- een nieuw ingrediënt, met een naam die je nog kunt aanpassen;
+- of niet meenemen (zout, peper en olie staan daar standaard op).
+
+Je keuzes worden onthouden: de volgende keer dat een site "tomatensaus"
+schrijft, staat jouw keuze meteen klaar. Daarna opent het gewone
+receptvenster, zodat je alles nog kunt nakijken voor het opslaan.
+
+Niet elke site laat zich uitlezen: Allerhande (AH) weigert het ophalen door
+een server. Dan opent vanzelf **Zelf plakken**: kopieer de ingrediënten
+van de receptpagina en plak ze erin, eventueel met de bereiding erbij. Dat
+hoeveelheid en naam bij AH op losse regels staan ("400 g", dan
+"kastanjechampignons") is geen probleem. Daarna volgt hetzelfde
+koppelvenster.
+
 ## Restjes / dubbele kookdag
 
 Kookte je maandag iets dat ook voor dinsdag genoeg is? Zet bij dat recept
@@ -301,13 +339,20 @@ beginscherm staat (iOS 16.4 of nieuwer) en je hem daarvandaan opent.
 | Lijst naar Bring gestuurd, week op slot | Iedereen |
 | Een verstuurde week weer ontgrendeld | Beheerders |
 | Nog geen menu voor de komende week | Bewerkers en beheerders |
+| Morgen staat iets op het menu dat nog in de vriezer ligt | Iedereen |
 
 Wie het zelf deed krijgt geen melding.
 
-De laatste komt van `cron.php`. Zet die in Plesk onder **Geplande taken**
+De laatste twee komen van `cron.php`. Zet die in Plesk onder **Geplande taken**
 → *Taak toevoegen* → *Een PHP-script uitvoeren*, met als script
-`httpdocs/cron.php`, bijvoorbeeld elke zondag om 18:00. Hij kijkt naar de
-week waar de volgende dag in valt. Via de browser doet `cron.php` niets.
+`httpdocs/cron.php`, **elke dag** om bijvoorbeeld 18:00. Hij kijkt naar
+morgen: ligt dat gerecht in de vriezer, dan krijg je een melding; is
+morgen maandag en is er nog geen weekmenu, dan ook. Via de browser doet
+`cron.php` niets.
+
+"In de vriezer" zet je per dag aan: klik op het gerecht en tik op **Ligt in
+de vriezer?**. Op de kaart van die dag staat dan een sneeuwvlokje. Kies je
+een ander gerecht voor die dag, dan gaat het vanzelf weer uit.
 
 De sleutels voor de meldingen maakt de app zelf aan, de eerste keer dat
 iemand inlogt. Ze staan in de tabel `setting`; haal je die weg, dan moet

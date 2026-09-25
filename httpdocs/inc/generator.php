@@ -10,7 +10,7 @@ if (!defined('WEEKMENU')) { http_response_code(403); exit('Forbidden'); }
 function loadPool(PDO $pdo, array $pantryIds, string $referenceWeek): array
 {
     $recipes = $pdo->query(
-        'SELECT id, name, category, effort, weekend_only, makes_leftovers, preference, notes, url
+        'SELECT id, name, category, effort, weekend_only, makes_leftovers, preference, season, notes, url
            FROM {recipe}
           WHERE is_active = 1'
     )->fetchAll();
@@ -58,6 +58,10 @@ function loadPool(PDO $pdo, array $pantryIds, string $referenceWeek): array
     // verandert er niets aan de gewichten.
     $dealHits = dealHitCounts($pdo);
 
+    // Seizoen: de maand van de donderdag, dan telt de week bij de maand
+    // waar de meeste dagen in vallen.
+    $month = (int)(new DateTimeImmutable($referenceWeek))->modify('+3 days')->format('n');
+
     foreach ($recipes as &$r) {
         $r['id']              = (int)$r['id'];
         $r['effort']          = (int)$r['effort'];
@@ -71,6 +75,9 @@ function loadPool(PDO $pdo, array $pantryIds, string $referenceWeek): array
 
         $r['pantry_hits'] = $hits[$r['id']] ?? 0;
         $r['deal_hits']   = $dealHits[$r['id']] ?? 0;
+
+        $months = seasonMonths($r['season']);
+        $r['in_season'] = $months === [] || in_array($month, $months, true);
     }
     unset($r);
 
@@ -155,6 +162,7 @@ function pickForDay(array $pool, int $dayIndex, array $usedIds, array $usedCats,
     $dayOk     = static fn(array $r): bool => $isWeekend || $r['weekend_only'] === 0;
     $cooledOff = static fn(array $r): bool => $r['weeks_since'] === null || $r['weeks_since'] >= COOLDOWN_WEEKS;
     $newCat    = static fn(array $r): bool => !in_array($r['category'], $usedCats, true);
+    $inSeason  = static fn(array $r): bool => $r['in_season'];
 
     // Restjes twee dagen later heeft geen zin meer als de week daarvoor
     // geen ruimte overlaat (leftoverTargetDay() geeft dan null - ook als
@@ -167,9 +175,9 @@ function pickForDay(array $pool, int $dayIndex, array $usedIds, array $usedCats,
         || leftoverTargetDay($dayIndex, $totalDays) !== null;
 
     $stages = [
-        static fn(array $r): bool => $notUsed($r) && $dayOk($r) && $leftoverOk($r) && $cooledOff($r) && $newCat($r),
-        static fn(array $r): bool => $notUsed($r) && $dayOk($r) && $leftoverOk($r) && $cooledOff($r),
-        static fn(array $r): bool => $notUsed($r) && $dayOk($r) && $leftoverOk($r),
+        static fn(array $r): bool => $notUsed($r) && $dayOk($r) && $leftoverOk($r) && $inSeason($r) && $cooledOff($r) && $newCat($r),
+        static fn(array $r): bool => $notUsed($r) && $dayOk($r) && $leftoverOk($r) && $inSeason($r) && $cooledOff($r),
+        static fn(array $r): bool => $notUsed($r) && $dayOk($r) && $leftoverOk($r) && $inSeason($r),
         static fn(array $r): bool => $notUsed($r),
         static fn(array $r): bool => true,
     ];
@@ -344,7 +352,7 @@ function rerollDay(PDO $pdo, int $weekId, int $dayIndex): ?array
     // (terug naar leeg), maar deze weg blijft geldig als iets anders ooit
     // rerollDay() op een restjesdag aanroept.
     $updated = $pdo->prepare(
-        'UPDATE {menu_entry} SET recipe_id = ?, is_leftover = 0 WHERE week_id = ? AND day_index = ?'
+        'UPDATE {menu_entry} SET recipe_id = ?, is_leftover = 0, thaw = 0 WHERE week_id = ? AND day_index = ?'
     );
     $updated->execute([$pick['id'], $weekId, $dayIndex]);
 
@@ -358,7 +366,7 @@ function rerollDay(PDO $pdo, int $weekId, int $dayIndex): ?array
     // staan met een gerecht dat je niet meer kookt.
     if ($currentId !== null) {
         $pdo->prepare(
-            'UPDATE {menu_entry} SET recipe_id = NULL, is_leftover = 0
+            'UPDATE {menu_entry} SET recipe_id = NULL, is_leftover = 0, thaw = 0
               WHERE week_id = ? AND day_index != ? AND recipe_id = ? AND is_leftover = 1'
         )->execute([$weekId, $dayIndex, $currentId]);
     }
@@ -437,7 +445,7 @@ function assignLeftover(PDO $pdo, int $weekId, int $sourceDay, int $targetDay): 
     }
 
     $pdo->prepare(
-        'UPDATE {menu_entry} SET recipe_id = ?, is_leftover = 1 WHERE week_id = ? AND day_index = ?'
+        'UPDATE {menu_entry} SET recipe_id = ?, is_leftover = 1, thaw = 0 WHERE week_id = ? AND day_index = ?'
     )->execute([(int)$recipe['id'], $weekId, $targetDay]);
 
     return $recipe;
@@ -452,7 +460,7 @@ function assignLeftover(PDO $pdo, int $weekId, int $sourceDay, int $targetDay): 
 function revertLeftover(PDO $pdo, int $weekId, int $dayIndex): bool
 {
     $stmt = $pdo->prepare(
-        'UPDATE {menu_entry} SET recipe_id = NULL, is_leftover = 0
+        'UPDATE {menu_entry} SET recipe_id = NULL, is_leftover = 0, thaw = 0
           WHERE week_id = ? AND day_index = ? AND is_leftover = 1'
     );
     $stmt->execute([$weekId, $dayIndex]);
@@ -471,7 +479,7 @@ function loadWeek(PDO $pdo, string $weekStart): ?array
     }
 
     $stmt = $pdo->prepare(
-        'SELECT me.day_index, me.is_junkfood, me.is_leftover, me.servings,
+        'SELECT me.day_index, me.is_junkfood, me.is_leftover, me.servings, me.thaw,
                 r.id, r.name, r.category, r.effort, r.notes, r.url, r.makes_leftovers
            FROM {menu_entry} me
       LEFT JOIN {recipe} r ON r.id = me.recipe_id

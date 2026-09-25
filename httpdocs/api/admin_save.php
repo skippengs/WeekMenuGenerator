@@ -35,6 +35,7 @@ $notes          = trim((string)($input['notes'] ?? ''));
 $steps          = trim((string)($input['steps'] ?? ''));
 $url            = trim((string)($input['url'] ?? ''));
 $ingredients    = (string)($input['ingredients'] ?? '');
+$season         = seasonValue(array_map('intval', (array)($input['season'] ?? [])));
 
 if ($name === '') {
     jsonOut(['error' => 'Geef het gerecht een naam.'], 422);
@@ -56,17 +57,17 @@ try {
         $pdo->prepare(
             'UPDATE {recipe}
                 SET name = ?, category = ?, effort = ?, weekend_only = ?, makes_leftovers = ?,
-                    servings = ?, notes = ?, steps = ?, url = ?, is_mine = ?, preference = ?
+                    servings = ?, notes = ?, steps = ?, url = ?, is_mine = ?, preference = ?, season = ?
               WHERE id = ?'
         )->execute([$name, $category, $effort, $weekendOnly, $makesLeftovers, $servings,
-                    $notes ?: null, $steps ?: null, $url ?: null, $isMine, $preference, $id]);
+                    $notes ?: null, $steps ?: null, $url ?: null, $isMine, $preference, $season, $id]);
         $notice = 'Recept bijgewerkt.';
     } else {
         $pdo->prepare(
-            'INSERT INTO {recipe} (name, category, effort, weekend_only, makes_leftovers, servings, notes, steps, url, is_mine, preference)
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
+            'INSERT INTO {recipe} (name, category, effort, weekend_only, makes_leftovers, servings, notes, steps, url, is_mine, preference, season)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
         )->execute([$name, $category, $effort, $weekendOnly, $makesLeftovers, $servings,
-                    $notes ?: null, $steps ?: null, $url ?: null, $isMine, $preference]);
+                    $notes ?: null, $steps ?: null, $url ?: null, $isMine, $preference, $season]);
         $id = (int)$pdo->lastInsertId();
         $notice = 'Recept toegevoegd.';
     }

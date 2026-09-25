@@ -223,13 +223,20 @@ $recipeCount = (int)$pdo->query('SELECT COUNT(*) FROM {recipe} WHERE is_active =
                 ?>
                 <?php $dayServings = (int)($entry['servings'] ?? 3); ?>
                 <article class="day <?= $isJunk ? 'day-junk' : '' ?> <?= $isLeftover ? 'day-leftover' : '' ?> <?= $i === $todayIndex ? 'day-today' : '' ?>"
-                         data-day="<?= $i ?>" data-day-servings="<?= $dayServings ?>">
+                         data-day="<?= $i ?>" data-day-servings="<?= $dayServings ?>"
+                         data-thaw="<?= !empty($entry['thaw']) ? 1 : 0 ?>">
                     <div class="day-head">
                         <span class="day-name"><?= esc($dayName) ?></span>
                         <span class="day-date">
                             <?php if ($i === $todayIndex): ?><span class="chip chip-now">vandaag</span><?php endif; ?>
                             <?= esc(dayDate($current, $i)) ?>
                         </span>
+                        <?php if ($hasRecipe && !$isLeftover): ?>
+                            <span class="day-thaw" title="Uit de vriezer halen" aria-label="Uit de vriezer halen"
+                                  <?= empty($entry['thaw']) ? 'hidden' : '' ?>>
+                                <i class="fa-solid fa-snowflake" aria-hidden="true"></i>
+                            </span>
+                        <?php endif; ?>
                         <?php if ($hasRecipe && !$isLeftover && isset($lastEaten[$i])): ?>
                             <button class="day-history" type="button" data-history="<?= esc($lastEaten[$i]) ?>"
                                     title="Wanneer vorige keer?" aria-label="Wanneer vorige keer?">
@@ -463,6 +470,13 @@ $recipeCount = (int)$pdo->query('SELECT COUNT(*) FROM {recipe} WHERE is_active =
         <footer class="modal-foot">
             <span class="hint" id="recipeHint"></span>
             <div class="modal-foot-right">
+                <?php if ($mayEdit): ?>
+                    <button class="btn btn-ghost btn-thaw" type="button" data-thaw-toggle hidden
+                            title="Stuurt de avond ervoor een melding">
+                        <i class="fa-solid fa-snowflake" aria-hidden="true"></i>
+                        <span data-thaw-label>Ligt in de vriezer</span>
+                    </button>
+                <?php endif; ?>
                 <button class="btn btn-ghost" data-close-recipe>Sluiten</button>
             </div>
         </footer>

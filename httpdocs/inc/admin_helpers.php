@@ -10,7 +10,7 @@ if (!defined('WEEKMENU')) { http_response_code(403); exit('Forbidden'); }
  */
 
 const INGREDIENT_UNITS = ['g', 'gram', 'kg', 'ml', 'l', 'liter', 'el', 'tl', 'teen', 'tenen',
-               'blik', 'blikje', 'pak', 'pakje', 'pot', 'bosje', 'snuf', 'plak', 'plakken'];
+               'blik', 'blikje', 'pak', 'pakje', 'pot', 'bosje', 'snuf', 'plak', 'plakken', 'zak', 'zakje'];
 
 /**
  * Leest een regel als "400 g gehakt", "2 teen knoflook" of gewoon "ui".
@@ -39,7 +39,7 @@ function parseIngredientLine(string $line): ?array
 
             // Schrijfwijzen gelijktrekken.
             $same = ['gram' => 'g', 'liter' => 'l', 'tenen' => 'teen',
-                     'blikje' => 'blik', 'pakje' => 'pak', 'plakken' => 'plak'];
+                     'blikje' => 'blik', 'pakje' => 'pak', 'plakken' => 'plak', 'zakje' => 'zak'];
             $unit = $same[$unit] ?? $unit;
         }
     }
@@ -141,6 +141,9 @@ function renderRecipeRow(array $r): string
             <?php endif; ?>
             <?php if ((int)$r['makes_leftovers'] === 1): ?>
                 <span class="chip chip-soft">restjes</span>
+            <?php endif; ?>
+            <?php if (seasonLabel($r['season']) !== ''): ?>
+                <span class="chip chip-soft"><?= esc(seasonLabel($r['season'])) ?></span>
             <?php endif; ?>
             <?php if ((int)$r['preference'] !== 0): ?>
                 <span class="chip chip-soft"><?= esc(mb_strtolower(PREFERENCES[(int)$r['preference']][0] ?? '')) ?></span>

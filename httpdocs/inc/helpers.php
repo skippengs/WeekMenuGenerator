@@ -124,3 +124,50 @@ function dayDateIso(string $weekStart, int $dayIndex): string
 {
     return (new DateTimeImmutable($weekStart))->modify('+' . $dayIndex . ' days')->format('Y-m-d');
 }
+
+const MONTH_SHORT = [1 => 'jan', 'feb', 'mrt', 'apr', 'mei', 'jun', 'jul', 'aug', 'sep', 'okt', 'nov', 'dec'];
+
+/** recipe.season ("10,11,12,1") als lijst maanden; leeg = het hele jaar. */
+function seasonMonths(?string $season): array
+{
+    $months = array_filter(
+        array_map('intval', explode(',', (string)$season)),
+        static fn(int $m): bool => $m >= 1 && $m <= 12
+    );
+    $months = array_values(array_unique($months));
+    sort($months);
+
+    return count($months) === 12 ? [] : $months;
+}
+
+/** Terug naar de kolomwaarde; hele jaar wordt NULL. */
+function seasonValue(array $months): ?string
+{
+    $months = seasonMonths(implode(',', $months));
+    return $months === [] ? null : implode(',', $months);
+}
+
+/** Kort label voor in de tabel: "okt-mrt" als het aaneengesloten is. */
+function seasonLabel(?string $season): string
+{
+    $months = seasonMonths($season);
+    if ($months === []) {
+        return '';
+    }
+
+    // Zoek de maand waar het seizoen begint: de eerste waarvan de vorige
+    // maand er niet bij hoort. Loopt het rond, dan is het één blok.
+    $in    = array_flip($months);
+    $start = null;
+    foreach ($months as $m) {
+        if (!isset($in[$m === 1 ? 12 : $m - 1])) {
+            if ($start !== null) {
+                return 'seizoen';   // twee losse blokken
+            }
+            $start = $m;
+        }
+    }
+    $end = ($start + count($months) - 2) % 12 + 1;
+
+    return $start === $end ? MONTH_SHORT[$start] : MONTH_SHORT[$start] . '-' . MONTH_SHORT[$end];
+}

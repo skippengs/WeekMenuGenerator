@@ -69,9 +69,15 @@ $dealExclusions     = fetchDealExclusionsForAdmin($pdo);
         <div class="card">
             <div class="card-head">
                 <h2 id="recipeCount"><?= count($recipes) ?> recepten</h2>
-                <button class="btn btn-primary" type="button" data-new-recipe>
-                    <i class="fa-solid fa-plus" aria-hidden="true"></i> Nieuw recept
-                </button>
+                <div class="card-head-actions">
+                    <button class="btn btn-ghost" type="button" data-import-recipe
+                            title="Recept overnemen van een receptensite">
+                        <i class="fa-solid fa-link" aria-hidden="true"></i> Importeer
+                    </button>
+                    <button class="btn btn-primary" type="button" data-new-recipe>
+                        <i class="fa-solid fa-plus" aria-hidden="true"></i> Nieuw recept
+                    </button>
+                </div>
             </div>
 
             <table class="recipe-table">
@@ -356,6 +362,22 @@ $dealExclusions     = fetchDealExclusionsForAdmin($pdo);
                     <p class="field-hint">Weegt mee bij het loten. Helemaal niet meer? Pauzeer het recept.</p>
                 </div>
 
+                <fieldset class="field season-field">
+                    <legend>Seizoen</legend>
+                    <div class="season-months">
+                        <?php foreach (MONTH_SHORT as $m => $label): ?>
+                            <label class="season-month">
+                                <input type="checkbox" name="season" value="<?= $m ?>">
+                                <span><?= esc($label) ?></span>
+                            </label>
+                        <?php endforeach; ?>
+                    </div>
+                    <p class="field-hint">
+                        Alleen in deze maanden in de loting. Niets aangevinkt = het hele jaar.
+                        Zijn er te weinig recepten, dan mag het er buiten het seizoen toch in.
+                    </p>
+                </fieldset>
+
                 <div class="field field-check">
                     <input type="checkbox" id="f-weekend" name="weekend_only" value="1">
                     <label for="f-weekend">Alleen in het weekend</label>
@@ -382,6 +404,59 @@ $dealExclusions     = fetchDealExclusionsForAdmin($pdo);
                 <button class="btn btn-primary" type="submit" id="recipeEditSubmit">Toevoegen</button>
             </footer>
         </form>
+    </div>
+</div>
+
+<!-- Importvenster: ingrediënten koppelen ------------------------- -->
+<div class="modal" id="importModal" hidden>
+    <div class="modal-backdrop" data-close-import></div>
+
+    <div class="modal-card modal-card-import" role="dialog" aria-modal="true" aria-labelledby="importTitle">
+        <header class="modal-head">
+            <h2 id="importTitle">Ingrediënten koppelen</h2>
+            <button class="modal-x" type="button" data-close-import aria-label="Sluiten">&times;</button>
+        </header>
+
+        <form class="modal-body import-paste" id="importPaste" hidden>
+            <p class="hint">
+                Deze site laat zich niet automatisch uitlezen. Kopieer op de receptpagina de
+                ingrediënten en plak ze hieronder; hoeveelheid en naam op losse regels
+                (zoals bij Allerhande) is ook goed.
+            </p>
+            <div class="field">
+                <label for="f-paste-name">Gerecht</label>
+                <input type="text" id="f-paste-name" name="name" maxlength="160">
+            </div>
+            <div class="field">
+                <label for="f-paste-servings">Voor hoeveel personen</label>
+                <input type="number" id="f-paste-servings" name="servings" min="1" max="20" value="4">
+            </div>
+            <div class="field">
+                <label for="f-paste-ingredients">Ingrediënten</label>
+                <textarea id="f-paste-ingredients" name="ingredients" rows="8" required
+                          placeholder="300 g&#10;kastanjechampignons&#10;1 ui"></textarea>
+            </div>
+            <div class="field">
+                <label for="f-paste-steps">Bereiding <span class="field-hint">(optioneel)</span></label>
+                <textarea id="f-paste-steps" name="steps" rows="5"></textarea>
+            </div>
+            <button class="btn btn-primary" type="submit">Koppelen</button>
+        </form>
+
+        <p class="modal-intro" data-import-step>
+            Links staat wat de site schrijft, rechts wat het bij ons wordt. Kies een
+            bestaand ingrediënt, maak een nieuw aan of laat het weg. Je keuzes worden
+            onthouden voor de volgende keer.
+        </p>
+
+        <div class="modal-body" data-import-step>
+            <ul class="import-list" id="importList"></ul>
+        </div>
+
+        <footer class="modal-foot">
+            <button class="btn btn-ghost" type="button" data-close-import>Annuleren</button>
+            <button class="btn btn-primary" type="button" data-import-confirm data-import-step>Verder naar het recept</button>
+        </footer>
     </div>
 </div>
 

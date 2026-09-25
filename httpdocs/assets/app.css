@@ -17,6 +17,8 @@
     --leftover-soft: #eae9fa;
     --deal:        #9a6a00;
     --deal-soft:   #fbf0d6;
+    --thaw:        #2b72a8;
+    --thaw-soft:   #e2eef8;
     --danger:      #a8322a;
     --radius:      12px;
     --shadow:      0 1px 2px rgba(0, 0, 0, .06), 0 4px 12px rgba(0, 0, 0, .04);
@@ -38,6 +40,8 @@
         --leftover-soft: #292750;
         --deal:        #e0b13a;
         --deal-soft:   #3a2f12;
+        --thaw:        #7dbbe8;
+        --thaw-soft:   #1d2e3c;
         --danger:      #e28b83;
         --shadow:      0 1px 2px rgba(0, 0, 0, .3), 0 4px 12px rgba(0, 0, 0, .2);
     }
@@ -1154,3 +1158,109 @@ button.icon-btn { border: 0; cursor: pointer; color: inherit; }
     .day-today { box-shadow: none; }
     .shopping-head .hint { display: none; }
 }
+
+/* ---------- vriezer ---------- */
+
+.day-thaw { align-self: flex-start; color: var(--thaw); font-size: 14px; }
+.day-thaw[hidden] { display: none; }
+
+.btn-thaw[hidden] { display: none; }
+.btn-thaw { color: var(--thaw); border-color: var(--thaw-soft); }
+.btn-thaw.is-active { background: var(--thaw-soft); border-color: var(--thaw); font-weight: 600; }
+
+@media (max-width: 700px) {
+    .day-thaw { align-self: auto; }
+}
+
+/* ---------- seizoen (recept bewerken) ---------- */
+
+.season-field { border: 0; padding: 0; margin: 0 0 14px; min-width: 0; }
+.season-field legend {
+    margin-bottom: 5px;
+    padding: 0;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-soft);
+}
+
+.season-months {
+    display: grid;
+    grid-template-columns: repeat(6, 1fr);
+    gap: 4px;
+}
+
+.season-month { position: relative; cursor: pointer; }
+.season-month input { position: absolute; opacity: 0; pointer-events: none; }
+.season-month span {
+    display: block;
+    padding: 6px 0;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    text-align: center;
+    font-size: 13px;
+    color: var(--text-soft);
+    user-select: none;
+}
+.season-month input:checked + span {
+    background: var(--accent-soft);
+    border-color: var(--accent);
+    color: var(--accent);
+    font-weight: 600;
+}
+.season-month input:focus-visible + span { outline: 2px solid var(--accent); outline-offset: 1px; }
+
+/* ---------- recept importeren ---------- */
+
+.card-head-actions { display: flex; flex-wrap: wrap; gap: 8px; justify-content: flex-end; }
+
+.modal-card-import { max-width: 760px; }
+
+.import-list { list-style: none; margin: 0; padding: 0; }
+
+.import-row {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1.3fr);
+    gap: 6px 14px;
+    align-items: center;
+    padding: 10px 0;
+    border-bottom: 1px solid var(--border);
+}
+.import-row:last-child { border-bottom: 0; }
+
+.import-raw { font-size: 14px; overflow-wrap: anywhere; }
+.import-raw .chip { margin-left: 6px; vertical-align: middle; }
+
+.import-pick {
+    display: grid;
+    grid-template-columns: 64px 70px minmax(0, 1fr);
+    gap: 6px;
+}
+
+.import-pick input,
+.import-pick select {
+    width: 100%;
+    min-width: 0;
+    padding: 7px 8px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: var(--bg);
+    color: var(--text);
+    font: inherit;
+    font-size: 14px;
+}
+
+.import-new { grid-column: 1 / -1; }
+.import-new[hidden] { display: none; }
+
+.import-row.is-new .import-ingredient { border-color: var(--accent); }
+.import-row.is-skip .import-raw { color: var(--text-soft); text-decoration: line-through; }
+.import-row.is-skip .import-amount,
+.import-row.is-skip .import-unit { opacity: .4; }
+
+@media (max-width: 640px) {
+    .import-row { grid-template-columns: 1fr; }
+}
+
+.import-paste[hidden],
+.modal-card-import [data-import-step][hidden] { display: none; }
+.import-paste { padding-top: 6px; }
