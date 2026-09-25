@@ -7,12 +7,16 @@ require __DIR__ . '/inc/db.php';
 require __DIR__ . '/inc/helpers.php';
 require __DIR__ . '/inc/auth.php';
 require __DIR__ . '/inc/settings.php';
+require __DIR__ . '/inc/deals.php';
 require __DIR__ . '/inc/admin_helpers.php';
 
 startSession();
-requireAdmin();
+requireRole('editor');
 
 $pdo = db();
+
+// Bewerkers mogen recepten beheren; de andere tabbladen zijn voor beheerders.
+$isAdmin = hasRole('admin');
 
 $recipes            = fetchRecipesForAdmin($pdo);
 $ingredients        = fetchIngredientsForAdmin($pdo);
@@ -52,9 +56,12 @@ $dealExclusions     = fetchDealExclusionsForAdmin($pdo);
 
     <div class="tabs" role="tablist">
         <button class="tab-btn is-active" type="button" role="tab" data-tab="recepten">Recepten</button>
-        <button class="tab-btn" type="button" role="tab" data-tab="instellingen">Instellingen</button>
-        <button class="tab-btn" type="button" role="tab" data-tab="voorraad">Voorraadlijst</button>
-        <button class="tab-btn" type="button" role="tab" data-tab="kortingen">Kortingen</button>
+        <?php if ($isAdmin): ?>
+            <button class="tab-btn" type="button" role="tab" data-tab="instellingen">Instellingen</button>
+            <button class="tab-btn" type="button" role="tab" data-tab="voorraad">Voorraadlijst</button>
+            <button class="tab-btn" type="button" role="tab" data-tab="kortingen">Kortingen</button>
+            <button class="tab-btn" type="button" role="tab" data-tab="gebruikers">Gebruikers</button>
+        <?php endif; ?>
     </div>
 
     <!-- recepten ------------------------------------------------------ -->
@@ -73,6 +80,7 @@ $dealExclusions     = fetchDealExclusionsForAdmin($pdo);
                         <th>Gerecht</th>
                         <th class="col-hide">Soort</th>
                         <th class="col-hide">Werk</th>
+                        <th class="col-hide">Laatst</th>
                         <th class="col-actions"></th>
                     </tr>
                 </thead>
@@ -85,6 +93,7 @@ $dealExclusions     = fetchDealExclusionsForAdmin($pdo);
         </div>
     </section>
 
+    <?php if ($isAdmin): ?>
     <!-- instellingen ---------------------------------------------------- -->
     <section class="tab-panel" id="tab-instellingen" data-tab-panel="instellingen" hidden>
         <form class="card" id="settingsForm">
@@ -113,6 +122,18 @@ $dealExclusions     = fetchDealExclusionsForAdmin($pdo);
 
             <button class="btn btn-primary" type="submit">Opslaan</button>
         </form>
+
+        <div class="card" style="margin-top:16px">
+            <h2>Back-up</h2>
+            <p class="hint" style="margin-top:-10px">
+                Alle tabellen als één <code>.sql</code>-bestand, terug te zetten via
+                phpMyAdmin in Plesk (Importeren). Bevat ook de gebruikers, met hun
+                versleutelde wachtwoorden: bewaar het dus niet zomaar ergens.
+            </p>
+            <a class="btn btn-primary" href="backup.php">
+                <i class="fa-solid fa-download" aria-hidden="true"></i> Download back-up
+            </a>
+        </div>
     </section>
 
     <!-- voorraadlijst ------------------------------------------------ -->
@@ -168,6 +189,9 @@ $dealExclusions     = fetchDealExclusionsForAdmin($pdo);
                 <h2 id="dealExclusionCount"><?= count($dealExclusions) ?> uitgesloten producten</h2>
             </div>
             <p class="hint" style="margin-top:-10px">
+                <?= esc(dealsHealthText($pdo)) ?>
+            </p>
+            <p class="hint">
                 Specifieke producten die je per ingredient hebt afgekeurd. Werkt alleen
                 op de levende kortingscache &mdash; een week die al op slot staat heeft een
                 bevroren momentopname en verandert hier niet door.
@@ -190,6 +214,53 @@ $dealExclusions     = fetchDealExclusionsForAdmin($pdo);
             <?php endif; ?>
         </div>
     </section>
+
+    <!-- gebruikers ------------------------------------------------------ -->
+    <section class="tab-panel" id="tab-gebruikers" data-tab-panel="gebruikers" hidden>
+        <div class="card">
+            <h2>Gebruikers</h2>
+            <p class="hint" style="margin-top:-10px">
+                <strong>Lezer</strong> kijkt mee en kan meldingen aanzetten.
+                <strong>Bewerker</strong> maakt het menu, vinkt boodschappen af en beheert recepten.
+                <strong>Beheerder</strong> mag daarnaast alles in deze tabbladen.
+            </p>
+            <table class="recipe-table">
+                <thead>
+                    <tr>
+                        <th>Naam</th>
+                        <th>Rol</th>
+                        <th class="col-actions"></th>
+                    </tr>
+                </thead>
+                <tbody id="userTableBody">
+                    <?= renderUserTable($pdo, currentUser()['id']) ?>
+                </tbody>
+            </table>
+        </div>
+
+        <form class="card" id="userCreateForm" style="margin-top:16px">
+            <h2>Nieuwe gebruiker</h2>
+            <div class="field">
+                <label for="f-user-name">Gebruikersnaam</label>
+                <input type="text" id="f-user-name" name="username" required maxlength="60" autocapitalize="none">
+            </div>
+            <div class="field">
+                <label for="f-user-pass">Wachtwoord</label>
+                <input type="password" id="f-user-pass" name="password" required minlength="8" autocomplete="new-password">
+                <p class="field-hint">Minstens 8 tekens. Geef het zelf door; er gaat geen mail.</p>
+            </div>
+            <div class="field">
+                <label for="f-user-role">Rol</label>
+                <select id="f-user-role" name="role">
+                    <?php foreach (ROLE_LABELS as $key => $label): ?>
+                        <option value="<?= esc($key) ?>"><?= esc($label) ?></option>
+                    <?php endforeach; ?>
+                </select>
+            </div>
+            <button class="btn btn-primary" type="submit">Aanmaken</button>
+        </form>
+    </section>
+    <?php endif; ?>
 
 </main>
 
@@ -273,6 +344,16 @@ $dealExclusions     = fetchDealExclusionsForAdmin($pdo);
                 <div class="field">
                     <label for="f-url">Link naar recept</label>
                     <input type="url" id="f-url" name="url" maxlength="400" placeholder="https://">
+                </div>
+
+                <div class="field">
+                    <label for="f-preference">Hoe vaak</label>
+                    <select id="f-preference" name="preference">
+                        <?php foreach (PREFERENCES as $key => [$label]): ?>
+                            <option value="<?= $key ?>" <?= $key === 0 ? 'selected' : '' ?>><?= esc($label) ?></option>
+                        <?php endforeach; ?>
+                    </select>
+                    <p class="field-hint">Weegt mee bij het loten. Helemaal niet meer? Pauzeer het recept.</p>
                 </div>
 
                 <div class="field field-check">

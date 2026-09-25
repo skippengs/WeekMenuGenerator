@@ -14,6 +14,7 @@ if (!defined('WEEKMENU')) { http_response_code(403); exit('Forbidden'); }
  */
 
 const DEALS_SETTING_CHECKED_AT = 'deals_checked_at';
+const DEALS_SETTING_OK_AT      = 'deals_ok_at';
 
 // Woorden die nooit een aanwijzing zijn dat een product afwijkt: lidwoorden,
 // voegwoorden en de eenheden/aanduidingen die toch al overal in productnamen
@@ -278,6 +279,7 @@ function refreshDeals(PDO $pdo, bool $force = false): void
             continue;
         }
 
+        setSetting($pdo, DEALS_SETTING_OK_AT, date('Y-m-d H:i:s'));
         $del->execute([$row['id']]);
         foreach ($deals as $d) {
             $ins->execute([
@@ -378,4 +380,25 @@ function snapshotWeekDeals(PDO $pdo, int $weekId): void
            JOIN {menu_entry} me ON me.recipe_id = ri.recipe_id
           WHERE me.week_id = ? AND me.is_leftover = 0'
     )->execute([$weekId, $weekId]);
+}
+
+/** Eén regel voor het tabblad Kortingen: werkt prijsprofeet.nl nog? */
+function dealsHealthText(PDO $pdo): string
+{
+    $checked = getSetting($pdo, DEALS_SETTING_CHECKED_AT, '');
+    $ok      = getSetting($pdo, DEALS_SETTING_OK_AT, '');
+
+    if ($checked === '') {
+        return 'Kortingen zijn nog niet opgehaald; dat gebeurt bij het volgende weekmenu.';
+    }
+
+    $text = 'Laatst geprobeerd: ' . date('j M H:i', strtotime($checked)) . '. ';
+    if ($ok === '') {
+        return $text . 'Nog nooit gelukt.';
+    }
+    $text .= 'Laatst gelukt: ' . date('j M H:i', strtotime($ok)) . '.';
+    if (strtotime($ok) < strtotime($checked) - 3600) {
+        $text .= ' De laatste poging mislukte: prijsprofeet.nl is misschien veranderd of plat.';
+    }
+    return $text;
 }

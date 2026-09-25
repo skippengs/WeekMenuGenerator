@@ -114,10 +114,14 @@ function ingredientsAsText(PDO $pdo, int $recipeId): string
 function fetchRecipesForAdmin(PDO $pdo): array
 {
     return $pdo->query(
-        'SELECT r.*, COUNT(ri.ingredient_id) AS ing_count
+        'SELECT r.*,
+                (SELECT COUNT(*) FROM {recipe_ingredient} ri WHERE ri.recipe_id = r.id) AS ing_count,
+                (SELECT MAX(DATE_ADD(mw.week_start, INTERVAL me.day_index DAY))
+                   FROM {menu_entry} me
+                   JOIN {menu_week} mw ON mw.id = me.week_id
+                  WHERE me.recipe_id = r.id AND me.is_leftover = 0
+                    AND DATE_ADD(mw.week_start, INTERVAL me.day_index DAY) <= CURDATE()) AS last_eaten
            FROM {recipe} r
-      LEFT JOIN {recipe_ingredient} ri ON ri.recipe_id = r.id
-          GROUP BY r.id
           ORDER BY r.is_mine DESC, r.name'
     )->fetchAll();
 }
@@ -138,9 +142,13 @@ function renderRecipeRow(array $r): string
             <?php if ((int)$r['makes_leftovers'] === 1): ?>
                 <span class="chip chip-soft">restjes</span>
             <?php endif; ?>
+            <?php if ((int)$r['preference'] !== 0): ?>
+                <span class="chip chip-soft"><?= esc(mb_strtolower(PREFERENCES[(int)$r['preference']][0] ?? '')) ?></span>
+            <?php endif; ?>
         </td>
         <td class="col-hide"><?= esc(CATEGORIES[$r['category']] ?? $r['category']) ?></td>
         <td class="col-hide"><?= (int)$r['effort'] ?></td>
+        <td class="col-hide"><?= esc(lastEatenText($r['last_eaten'], true)) ?></td>
         <td class="col-actions">
             <button class="linkbtn" type="button" data-edit="<?= (int)$r['id'] ?>">bewerk</button>
             <button class="linkbtn" type="button" data-toggle="<?= (int)$r['id'] ?>">
@@ -257,6 +265,54 @@ function renderDealExclusionTable(PDO $pdo): string
     $html = '';
     foreach (fetchDealExclusionsForAdmin($pdo) as $e) {
         $html .= renderDealExclusionRow($e);
+    }
+    return $html;
+}
+
+/*
+ * Gebruikers: tabel in het tabblad Gebruikers, zelfde opzet als de
+ * receptentabel. Alleen voor beheerders.
+ */
+
+function fetchUsersForAdmin(PDO $pdo): array
+{
+    return $pdo->query('SELECT id, username, role FROM {app_user} ORDER BY username')->fetchAll();
+}
+
+function renderUserRow(array $u, int $selfId): string
+{
+    ob_start();
+    ?>
+    <tr data-user-row="<?= (int)$u['id'] ?>">
+        <td>
+            <?= esc($u['username']) ?>
+            <?php if ((int)$u['id'] === $selfId): ?><span class="chip chip-soft">jij</span><?php endif; ?>
+        </td>
+        <td>
+            <select data-user-role="<?= (int)$u['id'] ?>" aria-label="Rol van <?= esc($u['username']) ?>">
+                <?php foreach (ROLE_LABELS as $key => $label): ?>
+                    <option value="<?= esc($key) ?>" <?= $u['role'] === $key ? 'selected' : '' ?>><?= esc($label) ?></option>
+                <?php endforeach; ?>
+            </select>
+        </td>
+        <td class="col-actions">
+            <button class="linkbtn" type="button" data-user-password="<?= (int)$u['id'] ?>"
+                    data-name="<?= esc($u['username']) ?>">nieuw wachtwoord</button>
+            <?php if ((int)$u['id'] !== $selfId): ?>
+                <button class="linkbtn linkbtn-danger" type="button" data-user-delete="<?= (int)$u['id'] ?>"
+                        data-name="<?= esc($u['username']) ?>">wis</button>
+            <?php endif; ?>
+        </td>
+    </tr>
+    <?php
+    return (string)ob_get_clean();
+}
+
+function renderUserTable(PDO $pdo, int $selfId): string
+{
+    $html = '';
+    foreach (fetchUsersForAdmin($pdo) as $u) {
+        $html .= renderUserRow($u, $selfId);
     }
     return $html;
 }

@@ -9,12 +9,15 @@ require __DIR__ . '/inc/auth.php';
 require __DIR__ . '/inc/settings.php';
 require __DIR__ . '/inc/deals.php';
 require __DIR__ . '/inc/generator.php';
+require __DIR__ . '/inc/push.php';
 
 startSession();
 $pdo = db();
 
-// Kijken mag iedereen; alleen ingelogd kun je iets veranderen.
-$mayEdit = isAdmin();
+// Kijken mag iedereen, ook zonder in te loggen. Veranderen en afvinken
+// vanaf bewerker; een lezer logt in voor zijn eigen meldingen.
+$user    = currentUser();
+$mayEdit = hasRole('editor');
 
 $current  = weekStart($_GET['week'] ?? null);
 $week     = loadWeek($pdo, $current);
@@ -82,6 +85,32 @@ if ($defaultPantry === []) {
 }
 $defaultPantry = array_map('intval', $defaultPantry);
 
+// Wanneer stond elk gerecht van deze week vorige keer op tafel, gerekend
+// vanaf de dag zelf. Restjesdagen tellen niet als "gegeten".
+$lastEaten = [];
+if ($week !== null) {
+    $stmt = $pdo->prepare(
+        'SELECT me.day_index,
+                (SELECT MAX(DATE_ADD(mw2.week_start, INTERVAL me2.day_index DAY))
+                   FROM {menu_entry} me2
+                   JOIN {menu_week} mw2 ON mw2.id = me2.week_id
+                  WHERE me2.recipe_id = me.recipe_id AND me2.is_leftover = 0
+                    AND DATE_ADD(mw2.week_start, INTERVAL me2.day_index DAY)
+                      < DATE_ADD(mw.week_start, INTERVAL me.day_index DAY)) AS prev
+           FROM {menu_entry} me
+           JOIN {menu_week} mw ON mw.id = me.week_id
+          WHERE me.week_id = ? AND me.recipe_id IS NOT NULL'
+    );
+    $stmt->execute([$week['id']]);
+    foreach ($stmt as $row) {
+        $dayIndex = (int)$row['day_index'];
+        $lastEaten[$dayIndex] = lastEatenText($row['prev'], false, dayDateIso($current, $dayIndex));
+    }
+}
+
+// Vandaag, als je naar de huidige week kijkt.
+$todayIndex = $current === weekStart() ? (int)date('N') - 1 : null;
+
 $recipeCount = (int)$pdo->query('SELECT COUNT(*) FROM {recipe} WHERE is_active = 1')->fetchColumn();
 ?>
 <!DOCTYPE html>
@@ -110,11 +139,25 @@ $recipeCount = (int)$pdo->query('SELECT COUNT(*) FROM {recipe} WHERE is_active =
     <div class="wrap topbar-inner">
         <h1>Weekmenu</h1>
         <nav class="topnav">
-            <?php if ($mayEdit): ?>
-                <a class="icon-btn" href="admin.php" title="Recepten beheren" aria-label="Recepten beheren">
-                    <i class="fa-solid fa-pencil" aria-hidden="true"></i>
-                </a>
-                <a class="icon-btn" href="logout.php" title="Uitloggen" aria-label="Uitloggen">
+            <?php if ($week !== null): ?>
+                <button class="icon-btn" type="button" data-share title="Delen" aria-label="Delen">
+                    <i class="fa-solid fa-share-nodes" aria-hidden="true"></i>
+                </button>
+                <button class="icon-btn" type="button" data-print title="Afdrukken" aria-label="Afdrukken">
+                    <i class="fa-solid fa-print" aria-hidden="true"></i>
+                </button>
+            <?php endif; ?>
+            <?php if ($user !== null): ?>
+                <button class="icon-btn" type="button" data-push hidden title="Meldingen" aria-label="Meldingen">
+                    <i class="fa-solid fa-bell-slash" aria-hidden="true"></i>
+                </button>
+                <?php if ($mayEdit): ?>
+                    <a class="icon-btn" href="admin.php" title="Recepten beheren" aria-label="Recepten beheren">
+                        <i class="fa-solid fa-pencil" aria-hidden="true"></i>
+                    </a>
+                <?php endif; ?>
+                <a class="icon-btn" href="logout.php" title="Uitloggen (<?= esc($user['username']) ?>)"
+                   aria-label="Uitloggen">
                     <i class="fa-solid fa-right-from-bracket" aria-hidden="true"></i>
                 </a>
             <?php else: ?>
@@ -156,7 +199,7 @@ $recipeCount = (int)$pdo->query('SELECT COUNT(*) FROM {recipe} WHERE is_active =
             <p class="empty-text">Voor deze week staat nog geen menu klaar.</p>
             <?php if ($mayEditMenu): ?>
                 <button class="btn btn-primary btn-big" data-open-pantry>Genereer weekmenu</button>
-            <?php else: ?>
+            <?php elseif ($user === null): ?>
                 <p class="hint"><a href="login.php">Log in</a> om een menu te maken.</p>
             <?php endif; ?>
             <?php if ($mayEdit && $recipeCount < 10): ?>
@@ -179,11 +222,20 @@ $recipeCount = (int)$pdo->query('SELECT COUNT(*) FROM {recipe} WHERE is_active =
                 $isLeftover = $hasRecipe && !empty($entry['is_leftover']);
                 ?>
                 <?php $dayServings = (int)($entry['servings'] ?? 3); ?>
-                <article class="day <?= $isJunk ? 'day-junk' : '' ?> <?= $isLeftover ? 'day-leftover' : '' ?>"
+                <article class="day <?= $isJunk ? 'day-junk' : '' ?> <?= $isLeftover ? 'day-leftover' : '' ?> <?= $i === $todayIndex ? 'day-today' : '' ?>"
                          data-day="<?= $i ?>" data-day-servings="<?= $dayServings ?>">
                     <div class="day-head">
                         <span class="day-name"><?= esc($dayName) ?></span>
-                        <span class="day-date"><?= esc(dayDate($current, $i)) ?></span>
+                        <span class="day-date">
+                            <?php if ($i === $todayIndex): ?><span class="chip chip-now">vandaag</span><?php endif; ?>
+                            <?= esc(dayDate($current, $i)) ?>
+                        </span>
+                        <?php if ($hasRecipe && !$isLeftover && isset($lastEaten[$i])): ?>
+                            <button class="day-history" type="button" data-history="<?= esc($lastEaten[$i]) ?>"
+                                    title="Wanneer vorige keer?" aria-label="Wanneer vorige keer?">
+                                <i class="fa-regular fa-clock" aria-hidden="true"></i>
+                            </button>
+                        <?php endif; ?>
                     </div>
 
                     <div class="day-body">
@@ -445,7 +497,8 @@ $recipeCount = (int)$pdo->query('SELECT COUNT(*) FROM {recipe} WHERE is_active =
         weekStart: <?= json_encode($current) ?>,
         weekId: <?= json_encode($week['id'] ?? null) ?>,
         mayEdit: <?= json_encode($mayEdit) ?>,
-        mayEditMenu: <?= json_encode($mayEditMenu) ?>
+        mayEditMenu: <?= json_encode($mayEditMenu) ?>,
+        vapidPublic: <?= json_encode($user !== null ? vapidKeys($pdo)['public'] : null) ?>
     };
 </script>
 <script src="assets/app.js"></script>

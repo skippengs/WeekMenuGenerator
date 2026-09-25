@@ -9,7 +9,7 @@ require __DIR__ . '/../inc/auth.php';
 require __DIR__ . '/../inc/admin_helpers.php';
 
 startSession();
-requireAdminJson();
+requireRoleJson('editor');
 
 $id = isset($_GET['id']) ? (int)$_GET['id'] : 0;
 if ($id <= 0) {
@@ -42,6 +42,7 @@ jsonOut([
     'weekend_only'    => (int)$recipe['weekend_only'],
     'makes_leftovers' => (int)$recipe['makes_leftovers'],
     'is_mine'         => (int)$recipe['is_mine'],
+    'preference'      => (int)$recipe['preference'],
     'notes'           => (string)$recipe['notes'],
     'steps'           => (string)$recipe['steps'],
     'url'             => (string)$recipe['url'],

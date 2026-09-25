@@ -602,6 +602,7 @@
         f.weekend_only.checked     = !!(data && data.weekend_only);
         f.makes_leftovers.checked  = !!(data && data.makes_leftovers);
         f.is_mine.checked          = data ? !!data.is_mine : true;
+        f.preference.value         = data ? data.preference : 0;
 
         recipeEditModal.hidden = false;
         document.body.classList.add('modal-open');
@@ -803,7 +804,8 @@
                 url: f.url.value,
                 weekend_only: f.weekend_only.checked,
                 makes_leftovers: f.makes_leftovers.checked,
-                is_mine: f.is_mine.checked
+                is_mine: f.is_mine.checked,
+                preference: parseInt(f.preference.value, 10) || 0
             }).then(function (data) {
                 applyAdminData(data);
                 closeRecipeEdit();
@@ -1034,5 +1036,225 @@
             toast(err.message, true);
         });
     });
+
+    /* ---------- gebruikers (admin) ---------- */
+
+    var userTableBody  = document.getElementById('userTableBody');
+    var userCreateForm = document.getElementById('userCreateForm');
+
+    function userAction(payload) {
+        payload.csrf = cfg.csrf;
+        return postJson('api/admin_users.php', payload).then(function (data) {
+            if (userTableBody) { userTableBody.innerHTML = data.user_table; }
+            toast(data.notice);
+        }).catch(function (err) {
+            toast(err.message, true);
+            throw err;
+        });
+    }
+
+    if (userCreateForm) {
+        userCreateForm.addEventListener('submit', function (e) {
+            e.preventDefault();
+            var f = userCreateForm.elements;
+            userAction({
+                action: 'create',
+                username: f.username.value,
+                password: f.password.value,
+                role: f.role.value
+            }).then(function () { userCreateForm.reset(); }, function () {});
+        });
+    }
+
+    document.addEventListener('change', function (e) {
+        var select = e.target.closest('[data-user-role]');
+        if (!select) { return; }
+        userAction({
+            action: 'role',
+            id: parseInt(select.getAttribute('data-user-role'), 10),
+            role: select.value
+        }).catch(function () {
+            // Geweigerd (laatste beheerder): tabel opnieuw laden zet hem terug.
+            window.location.reload();
+        });
+    });
+
+    document.addEventListener('click', function (e) {
+        var pwBtn = e.target.closest('[data-user-password]');
+        if (pwBtn) {
+            var pw = prompt('Nieuw wachtwoord voor ' + pwBtn.getAttribute('data-name') + ' (minstens 8 tekens):');
+            if (pw) {
+                userAction({ action: 'password', id: parseInt(pwBtn.getAttribute('data-user-password'), 10), password: pw })
+                    .catch(function () {});
+            }
+            return;
+        }
+
+        var delBtn = e.target.closest('[data-user-delete]');
+        if (delBtn && confirm('Gebruiker ' + delBtn.getAttribute('data-name') + ' wissen?')) {
+            userAction({ action: 'delete', id: parseInt(delBtn.getAttribute('data-user-delete'), 10) })
+                .catch(function () {});
+        }
+    });
+
+    /* ---------- wanneer vorige keer ---------- */
+
+    document.addEventListener('click', function (e) {
+        var btn = e.target.closest('[data-history]');
+        if (btn) { toast(btn.getAttribute('data-history')); }
+    });
+
+    /* ---------- vandaag in beeld op de telefoon ---------- */
+
+    var today = document.querySelector('.day-today');
+    if (today && window.matchMedia('(max-width: 700px)').matches && !location.hash) {
+        today.scrollIntoView({ block: 'start' });
+    }
+
+    /* ---------- delen en afdrukken ---------- */
+
+    document.addEventListener('click', function (e) {
+        if (e.target.closest('[data-print]')) {
+            window.print();
+            return;
+        }
+        if (!e.target.closest('[data-share]')) { return; }
+
+        var url = location.origin + location.pathname + '?week=' + encodeURIComponent(cfg.weekStart);
+        if (navigator.share) {
+            navigator.share({ title: 'Weekmenu', url: url }).catch(function () {});
+        } else if (navigator.clipboard) {
+            navigator.clipboard.writeText(url).then(function () { toast('Link gekopieerd.'); });
+        } else {
+            prompt('Kopieer de link:', url);
+        }
+    });
+
+    /* ---------- afvinken van een ander apparaat bijhouden ---------- */
+
+    /*
+     * Twee telefoons in de winkel: elke 15 seconden, en meteen als je de
+     * app weer voor je haalt, ophalen wat er afgevinkt is. Alleen zolang de
+     * pagina zichtbaar is.
+     */
+
+    function syncChecks() {
+        if (document.hidden || !cfg.weekId || !document.querySelector('[data-check]')) { return; }
+
+        fetch('api/checks.php?week_id=' + encodeURIComponent(cfg.weekId), { cache: 'no-store' })
+            .then(function (res) { return res.json(); })
+            .then(function (data) {
+                if (!data.checked) { return; }
+                var done = {};
+                data.checked.forEach(function (item) { done[item] = true; });
+
+                Array.prototype.forEach.call(document.querySelectorAll('[data-check]'), function (box) {
+                    var on = !!done[box.getAttribute('data-check')];
+                    if (box.checked !== on) {
+                        box.checked = on;
+                        var label = box.closest('label');
+                        if (label) { label.classList.toggle('is-done', on); }
+                    }
+                });
+            })
+            .catch(function () {
+                // Geen bereik in de winkel: volgende keer beter.
+            });
+    }
+
+    if (cfg.weekId && document.querySelector('[data-check]')) {
+        setInterval(syncChecks, 15000);
+        document.addEventListener('visibilitychange', syncChecks);
+    }
+
+    /* ---------- pushmeldingen ---------- */
+
+    var pushBtn = document.querySelector('[data-push]');
+
+    function pushSupported() {
+        return 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window;
+    }
+
+    function keyToBytes(b64) {
+        var raw = atob((b64 + '==='.slice((b64.length + 3) % 4)).replace(/-/g, '+').replace(/_/g, '/'));
+        var out = new Uint8Array(raw.length);
+        for (var i = 0; i < raw.length; i++) { out[i] = raw.charCodeAt(i); }
+        return out;
+    }
+
+    function bytesToKey(buf) {
+        return btoa(String.fromCharCode.apply(null, new Uint8Array(buf)))
+            .replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+    }
+
+    function showPushState(on) {
+        pushBtn.hidden = false;
+        pushBtn.classList.toggle('is-on', on);
+        pushBtn.title = on ? 'Meldingen staan aan (tik om uit te zetten)' : 'Meldingen aanzetten';
+        pushBtn.querySelector('i').className = 'fa-solid ' + (on ? 'fa-bell' : 'fa-bell-slash');
+    }
+
+    if (pushBtn && cfg.vapidPublic) {
+        if (!pushSupported()) {
+            // Laat de knop wel zien, anders weet je op een iPhone niet waarom.
+            showPushState(false);
+        } else {
+            navigator.serviceWorker.ready.then(function (reg) {
+                return reg.pushManager.getSubscription();
+            }).then(function (sub) {
+                showPushState(!!sub);
+            });
+        }
+
+        pushBtn.addEventListener('click', function () {
+            if (!pushSupported()) {
+                toast('Meldingen werken hier niet. Op een iPhone: zet de app eerst op je beginscherm en open hem daarvandaan.', true);
+                return;
+            }
+
+            pushBtn.disabled = true;
+
+            navigator.serviceWorker.ready.then(function (reg) {
+                return reg.pushManager.getSubscription().then(function (sub) {
+                    if (sub) {
+                        return postJson('api/push.php', { csrf: cfg.csrf, action: 'unsubscribe', endpoint: sub.endpoint })
+                            .then(function (data) {
+                                return sub.unsubscribe().then(function () {
+                                    showPushState(false);
+                                    toast(data.notice);
+                                });
+                            });
+                    }
+
+                    return Notification.requestPermission().then(function (perm) {
+                        if (perm !== 'granted') {
+                            throw new Error('Meldingen zijn geblokkeerd. Zet ze aan in de instellingen van je browser.');
+                        }
+                        return reg.pushManager.subscribe({
+                            userVisibleOnly: true,
+                            applicationServerKey: keyToBytes(cfg.vapidPublic)
+                        });
+                    }).then(function (sub) {
+                        return postJson('api/push.php', {
+                            csrf: cfg.csrf,
+                            action: 'subscribe',
+                            endpoint: sub.endpoint,
+                            p256dh: bytesToKey(sub.getKey('p256dh')),
+                            auth: bytesToKey(sub.getKey('auth'))
+                        });
+                    }).then(function (data) {
+                        showPushState(true);
+                        toast(data.notice);
+                        // Meteen een testmelding, dan weet je dat het werkt.
+                        return postJson('api/push.php', { csrf: cfg.csrf, action: 'test' });
+                    });
+                });
+            }).catch(function (err) {
+                toast(err.message, true);
+            }).then(function () {
+                pushBtn.disabled = false;
+            });
+        });
+    }
 
 }());

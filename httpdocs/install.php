@@ -57,6 +57,7 @@ $form = [
     'db_user'       => defined('DB_USER')   ? DB_USER   : '',
     'db_prefix'     => defined('DB_PREFIX') ? DB_PREFIX : '',
     'planning_days' => 7,
+    'admin_user'    => 'admin',
 ];
 
 if (!$alreadyInstalled && $_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -70,6 +71,7 @@ if (!$alreadyInstalled && $_SERVER['REQUEST_METHOD'] === 'POST') {
     $form['db_user']   = trim((string)($_POST['db_user'] ?? ''));
     $form['db_prefix']     = trim((string)($_POST['db_prefix'] ?? ''));
     $form['planning_days'] = max(1, min(7, (int)($_POST['planning_days'] ?? 7) ?: 7));
+    $form['admin_user']    = trim((string)($_POST['admin_user'] ?? ''));
     $dbPass                = (string)($_POST['db_pass'] ?? '');
     $adminPass             = (string)($_POST['admin_pass'] ?? '');
     $adminPass2            = (string)($_POST['admin_pass2'] ?? '');
@@ -84,6 +86,10 @@ if (!$alreadyInstalled && $_SERVER['REQUEST_METHOD'] === 'POST') {
         $errors[] = 'Het voorvoegsel mag alleen letters, cijfers en _ bevatten.';
     } elseif (strlen($form['db_prefix']) > 24) {
         $errors[] = 'Houd het voorvoegsel korter dan 24 tekens.';
+    }
+
+    if ($form['admin_user'] === '' || mb_strlen($form['admin_user']) > 60) {
+        $errors[] = 'Kies een gebruikersnaam voor de beheerder.';
     }
 
     if (mb_strlen($adminPass) < 8) {
@@ -127,8 +133,7 @@ if (!$alreadyInstalled && $_SERVER['REQUEST_METHOD'] === 'POST') {
             . 'define(' . var_export('DB_NAME', true) . ', ' . var_export($form['db_name'], true) . ");\n"
             . 'define(' . var_export('DB_USER', true) . ', ' . var_export($form['db_user'], true) . ");\n"
             . 'define(' . var_export('DB_PASS', true) . ', ' . var_export($dbPass, true) . ");\n"
-            . 'define(' . var_export('DB_PREFIX', true) . ', ' . var_export($form['db_prefix'], true) . ");\n\n"
-            . 'define(' . var_export('ADMIN_PASSWORD', true) . ', ' . var_export($adminPass, true) . ");\n";
+            . 'define(' . var_export('DB_PREFIX', true) . ', ' . var_export($form['db_prefix'], true) . ");\n";
 
         if (@file_put_contents(CONFIG_FILE, $contents) === false) {
             $errors[] = 'Kon inc/config.local.php niet schrijven. '
@@ -157,6 +162,7 @@ if (!$alreadyInstalled && $_SERVER['REQUEST_METHOD'] === 'POST') {
                     effort       TINYINT UNSIGNED NOT NULL DEFAULT 2,
                     weekend_only TINYINT(1)    NOT NULL DEFAULT 0,
                     makes_leftovers TINYINT(1) NOT NULL DEFAULT 0,
+                    preference   TINYINT       NOT NULL DEFAULT 0,
                     servings     TINYINT UNSIGNED NOT NULL DEFAULT 4,
                     notes        TEXT          NULL,
                     steps        TEXT          NULL,
@@ -274,6 +280,37 @@ if (!$alreadyInstalled && $_SERVER['REQUEST_METHOD'] === 'POST') {
                     CONSTRAINT `{$p}fk_wd_ingredient` FOREIGN KEY (ingredient_id)
                         REFERENCES `{$p}ingredient`(id) ON DELETE CASCADE
                 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci",
+
+            $p . 'app_user' => "
+                CREATE TABLE IF NOT EXISTS `{$p}app_user` (
+                    id            INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+                    username      VARCHAR(60)  NOT NULL,
+                    password_hash VARCHAR(255) NOT NULL,
+                    role          VARCHAR(10)  NOT NULL DEFAULT 'reader',
+                    created_at    DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                    UNIQUE KEY uniq_username (username)
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci",
+
+            $p . 'login_attempt' => "
+                CREATE TABLE IF NOT EXISTS `{$p}login_attempt` (
+                    id           INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+                    ip           VARCHAR(45) NOT NULL,
+                    attempted_at DATETIME    NOT NULL,
+                    KEY idx_ip (ip, attempted_at)
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci",
+
+            $p . 'push_subscription' => "
+                CREATE TABLE IF NOT EXISTS `{$p}push_subscription` (
+                    id         INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+                    user_id    INT UNSIGNED NOT NULL,
+                    endpoint   VARCHAR(500) CHARACTER SET ascii NOT NULL,
+                    p256dh     VARCHAR(120) NOT NULL,
+                    auth       VARCHAR(40)  NOT NULL,
+                    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                    UNIQUE KEY uniq_endpoint (endpoint),
+                    CONSTRAINT `{$p}fk_push_user` FOREIGN KEY (user_id)
+                        REFERENCES `{$p}app_user`(id) ON DELETE CASCADE
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci",
         ];
 
         try {
@@ -281,6 +318,12 @@ if (!$alreadyInstalled && $_SERVER['REQUEST_METHOD'] === 'POST') {
                 $pdo->exec($sql);
             }
             $log[] = 'Tabellen aangemaakt: ' . implode(', ', array_keys($schema)) . '.';
+
+            $pdo->prepare(
+                "INSERT INTO `{$p}app_user` (username, password_hash, role) VALUES (?, ?, 'admin')
+                 ON DUPLICATE KEY UPDATE password_hash = VALUES(password_hash), role = 'admin'"
+            )->execute([$form['admin_user'], password_hash($adminPass, PASSWORD_DEFAULT)]);
+            $log[] = 'Beheerder ' . $form['admin_user'] . ' aangemaakt.';
         } catch (Throwable $e) {
             $errors[] = 'Tabellen aanmaken mislukt: ' . $e->getMessage();
         }
@@ -484,12 +527,18 @@ if (empty($_SESSION['csrf'])) {
             <hr style="border:0;border-top:1px solid var(--border);margin:22px 0">
 
             <div class="field">
+                <label for="admin_user">Gebruikersnaam van de beheerder</label>
+                <input type="text" id="admin_user" name="admin_user" required maxlength="60"
+                       autocapitalize="none" value="<?= esc($form['admin_user']) ?>">
+            </div>
+
+            <div class="field">
                 <label for="admin_pass">Adminwachtwoord (kies zelf)</label>
                 <input type="password" id="admin_pass" name="admin_pass" required
                        minlength="8" autocomplete="new-password">
                 <p class="field-hint">
-                    Hiermee log je straks in op <code>/admin.php</code> om recepten
-                    toe te voegen. Minstens 8 tekens.
+                    Hiermee log je straks in. Andere gebruikers maak je daarna aan
+                    onder Gebruikers in het admin paneel. Minstens 8 tekens.
                 </p>
             </div>
 
@@ -499,8 +548,6 @@ if (empty($_SESSION['csrf'])) {
                        minlength="8" autocomplete="new-password">
                 <p class="field-hint">
                     Een typefout hierin merk je anders pas als je wilt inloggen.
-                    Kwijt? Dan pas je <code>ADMIN_PASSWORD</code> aan in
-                    <code>inc/config.local.php</code>.
                 </p>
             </div>
 

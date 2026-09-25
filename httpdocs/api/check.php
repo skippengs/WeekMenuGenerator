@@ -13,8 +13,8 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     jsonOut(['error' => 'Alleen POST'], 405);
 }
 
-// Kijken mag iedereen, afvinken niet.
-requireAdminJson();
+// Kijken mag iedereen, afvinken alleen een bewerker.
+requireRoleJson('editor');
 
 $input = jsonIn();
 

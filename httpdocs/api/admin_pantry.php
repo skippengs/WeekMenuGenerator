@@ -13,7 +13,7 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     jsonOut(['error' => 'Alleen POST'], 405);
 }
 
-requireAdminJson();
+requireRoleJson('admin');
 
 $input = jsonIn();
 

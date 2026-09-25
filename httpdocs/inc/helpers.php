@@ -21,6 +21,10 @@ const CATEGORIES = [
 
 const EFFORTS = [1 => 'Snel (< 25 min)', 2 => 'Normaal', 3 => 'Uitgebreid'];
 
+// recipe.preference => [label, vermenigvuldiger in de loting]. Keer, net als
+// de voorraad, zodat het naast het recency-gewicht ook echt merkbaar is.
+const PREFERENCES = [1 => ['Favoriet', 2.0], 0 => ['Normaal', 1.0], -1 => ['Zelden', 0.3]];
+
 function esc(?string $s): string
 {
     return htmlspecialchars((string)$s, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
@@ -85,4 +89,38 @@ function csrfToken(): string
 function checkCsrf(?string $token): bool
 {
     return is_string($token) && !empty($_SESSION['csrf']) && hash_equals($_SESSION['csrf'], $token);
+}
+
+/**
+ * Wanneer stond een gerecht vorige keer op tafel, als tekst.
+ * $from is de dag waar je vanaf rekent: vandaag, of de dag in het menu.
+ * Kort is voor in een tabelcel.
+ */
+function lastEatenText(?string $date, bool $short = false, string $from = 'today'): string
+{
+    if ($date === null || $date === '') {
+        return $short ? '-' : 'Nog nooit eerder op het menu.';
+    }
+
+    $then = new DateTimeImmutable($date);
+    $when = $then->format($then->format('Y') === date('Y') ? 'j M' : 'j M Y');
+    if ($short) {
+        return $when;
+    }
+
+    $days = (int)$then->diff(new DateTimeImmutable($from))->days;
+    $ago  = match (true) {
+        $days === 1 => '1 dag',
+        $days < 14  => $days . ' dagen',
+        $days < 63  => intdiv($days, 7) . ' weken',
+        default     => intdiv($days, 30) . ' maanden',
+    };
+
+    return 'Vorige keer: ' . $when . ', ' . $ago . ' eerder.';
+}
+
+/** Zelfde als dayDate(), maar als Y-m-d om mee te rekenen. */
+function dayDateIso(string $weekStart, int $dayIndex): string
+{
+    return (new DateTimeImmutable($weekStart))->modify('+' . $dayIndex . ' days')->format('Y-m-d');
 }

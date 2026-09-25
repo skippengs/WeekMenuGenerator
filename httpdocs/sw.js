@@ -8,7 +8,7 @@
  * mensen de oude bestanden houden.
  */
 
-const CACHE = 'weekmenu-v10.8';
+const CACHE = 'weekmenu-v11.1';
 
 const SHELL = [
     'assets/app.css',
@@ -52,6 +52,11 @@ self.addEventListener('fetch', (event) => {
         return;
     }
 
+    // Api-antwoorden en de back-up (met wachtwoord-hashes) nooit bewaren.
+    if (url.pathname.includes('/api/') || url.pathname.endsWith('backup.php')) {
+        return;
+    }
+
     // Het menu zelf: eerst het net, want een verse week is het punt.
     // Lukt dat niet, dan de laatst opgehaalde versie.
     if (req.mode === 'navigate' || url.pathname.endsWith('.php')) {
@@ -83,6 +88,43 @@ self.addEventListener('fetch', (event) => {
                 .catch(() => hit);
 
             return hit || fresh;
+        })
+    );
+});
+
+/* ---------- pushmeldingen ---------- */
+
+self.addEventListener('push', (event) => {
+    let data = {};
+    try {
+        data = event.data ? event.data.json() : {};
+    } catch (e) {
+        data = { body: event.data ? event.data.text() : '' };
+    }
+
+    event.waitUntil(
+        self.registration.showNotification(data.title || 'Weekmenu', {
+            body: data.body || '',
+            icon: 'assets/icon-192.png',
+            badge: 'assets/icon-192.png',
+            data: { url: data.url || 'index.php' }
+        })
+    );
+});
+
+// Tik op de melding: een open venster van de app hergebruiken, anders een nieuw.
+self.addEventListener('notificationclick', (event) => {
+    event.notification.close();
+    const target = new URL(event.notification.data.url, self.registration.scope).href;
+
+    event.waitUntil(
+        self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((list) => {
+            for (const client of list) {
+                if ('navigate' in client) {
+                    return client.focus().then(() => client.navigate(target));
+                }
+            }
+            return self.clients.openWindow(target);
         })
     );
 });

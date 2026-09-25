@@ -1118,3 +1118,39 @@ code {
 @media (max-width: 700px) {
     .alert-locked { flex-direction: column; align-items: flex-start; }
 }
+
+/* ---------- vandaag, vorige keer, meldingen ---------- */
+
+button.icon-btn { border: 0; cursor: pointer; color: inherit; }
+.icon-btn.is-on { color: var(--accent); }
+
+.day-today { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent), var(--shadow); }
+.day-today .chip-now { margin-right: 4px; }
+
+.day-history {
+    align-self: flex-start;
+    padding: 2px 0;
+    border: 0;
+    background: none;
+    color: var(--text-soft);
+    font-size: 14px;
+    cursor: pointer;
+}
+.day-history:hover { color: var(--accent); }
+
+@media (max-width: 700px) {
+    .day-history { align-self: auto; margin-left: auto; padding: 0 2px; }
+    .day-today { scroll-margin-top: 12px; }
+}
+
+/* ---------- afdrukken ---------- */
+
+@media print {
+    .topbar, .weeknav .btn, .day-actions, .day-history, .actions,
+    .shopping-head .btn, .deal-badge, .alert, .toast, .modal { display: none !important; }
+
+    body { background: #fff; color: #000; }
+    .day, .shopping { box-shadow: none; border-color: #ccc; break-inside: avoid; }
+    .day-today { box-shadow: none; }
+    .shopping-head .hint { display: none; }
+}

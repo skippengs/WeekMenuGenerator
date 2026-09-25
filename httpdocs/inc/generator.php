@@ -10,7 +10,7 @@ if (!defined('WEEKMENU')) { http_response_code(403); exit('Forbidden'); }
 function loadPool(PDO $pdo, array $pantryIds, string $referenceWeek): array
 {
     $recipes = $pdo->query(
-        'SELECT id, name, category, effort, weekend_only, makes_leftovers, notes, url
+        'SELECT id, name, category, effort, weekend_only, makes_leftovers, preference, notes, url
            FROM {recipe}
           WHERE is_active = 1'
     )->fetchAll();
@@ -63,6 +63,7 @@ function loadPool(PDO $pdo, array $pantryIds, string $referenceWeek): array
         $r['effort']          = (int)$r['effort'];
         $r['weekend_only']    = (int)$r['weekend_only'];
         $r['makes_leftovers'] = (int)$r['makes_leftovers'];
+        $r['preference']      = (int)$r['preference'];
 
         $r['weeks_since'] = isset($distance[$r['id']])
             ? (int)floor($distance[$r['id']] / 7)
@@ -100,6 +101,8 @@ function recipeWeight(array $r, bool $isWeekend): float
     if ($r['deal_hits'] > 0) {
         $w *= 1.0 + ($r['deal_hits'] * DEALS_BOOST);
     }
+
+    $w *= PREFERENCES[$r['preference'] ?? 0][1] ?? 1.0;
 
     if ($r['effort'] >= 3) {
         $w *= $isWeekend ? 1.4 : 0.30;   // doordeweeks geen uurtje in de keuken

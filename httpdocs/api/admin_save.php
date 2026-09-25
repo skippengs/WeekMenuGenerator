@@ -14,7 +14,7 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     jsonOut(['error' => 'Alleen POST'], 405);
 }
 
-requireAdminJson();
+requireRoleJson('editor');
 
 $input = jsonIn();
 
@@ -30,6 +30,7 @@ $weekendOnly    = !empty($input['weekend_only']) ? 1 : 0;
 $makesLeftovers = !empty($input['makes_leftovers']) ? 1 : 0;
 $servings       = max(1, min(20, (int)($input['servings'] ?? 4)));
 $isMine         = !empty($input['is_mine']) ? 1 : 0;
+$preference     = (int)($input['preference'] ?? 0);
 $notes          = trim((string)($input['notes'] ?? ''));
 $steps          = trim((string)($input['steps'] ?? ''));
 $url            = trim((string)($input['url'] ?? ''));
@@ -40,6 +41,9 @@ if ($name === '') {
 }
 if (!isset(CATEGORIES[$category])) {
     $category = 'overig';
+}
+if (!isset(PREFERENCES[$preference])) {
+    $preference = 0;
 }
 if ($effort < 1 || $effort > 3) {
     $effort = 2;
@@ -52,17 +56,17 @@ try {
         $pdo->prepare(
             'UPDATE {recipe}
                 SET name = ?, category = ?, effort = ?, weekend_only = ?, makes_leftovers = ?,
-                    servings = ?, notes = ?, steps = ?, url = ?, is_mine = ?
+                    servings = ?, notes = ?, steps = ?, url = ?, is_mine = ?, preference = ?
               WHERE id = ?'
         )->execute([$name, $category, $effort, $weekendOnly, $makesLeftovers, $servings,
-                    $notes ?: null, $steps ?: null, $url ?: null, $isMine, $id]);
+                    $notes ?: null, $steps ?: null, $url ?: null, $isMine, $preference, $id]);
         $notice = 'Recept bijgewerkt.';
     } else {
         $pdo->prepare(
-            'INSERT INTO {recipe} (name, category, effort, weekend_only, makes_leftovers, servings, notes, steps, url, is_mine)
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
+            'INSERT INTO {recipe} (name, category, effort, weekend_only, makes_leftovers, servings, notes, steps, url, is_mine, preference)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
         )->execute([$name, $category, $effort, $weekendOnly, $makesLeftovers, $servings,
-                    $notes ?: null, $steps ?: null, $url ?: null, $isMine]);
+                    $notes ?: null, $steps ?: null, $url ?: null, $isMine, $preference]);
         $id = (int)$pdo->lastInsertId();
         $notice = 'Recept toegevoegd.';
     }

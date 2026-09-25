@@ -20,9 +20,14 @@ op gewone PHP-webhosting met MySQL.
   Aldi en PLUS, en laat op de boodschappenlijst zien welk product in de
   aanbieding is en bij welke winkel
 - 47 Nederlandse recepten om mee te beginnen, met bereiding
-- Kijken mag iedereen, wijzigen alleen na inloggen
-- Boodschappen afvinken wordt per week bewaard, dus op elk apparaat gelijk
+- Kijken mag iedereen; gebruikers met een eigen rol (lezer, bewerker, beheerder)
+- Boodschappen afvinken wordt per week bewaard en verschijnt binnen een paar
+  seconden ook op andere telefoons
 - Exportknop zet de lijst in de Bring! app
+- Klokje per dag: wanneer stond dit gerecht vorige keer op tafel
+- Recepten als favoriet of "zelden" markeren
+- Pushmeldingen op je telefoon (zie **Meldingen**)
+- Delen, afdrukken en een back-up van de hele database
 
 ## Installeren op mijndomein.nl
 
@@ -54,6 +59,8 @@ httpdocs/
 ├── logout.php
 ├── bring.php
 ├── bring-export.php
+├── backup.php
+├── cron.php         ← herinnering, via Geplande taken (zie Meldingen)
 ├── install.php      ← weghalen na stap 4
 ├── manifest.json
 ├── sw.js
@@ -67,6 +74,8 @@ httpdocs/
 │   ├── lock.php
 │   ├── deal_exclude.php
 │   ├── recipe.php
+│   ├── checks.php
+│   ├── push.php
 │   └── admin_*.php
 ├── assets/
 │   ├── app.css
@@ -80,6 +89,7 @@ httpdocs/
     ├── settings.php
     ├── generator.php
     ├── deals.php
+    ├── push.php
     ├── admin_helpers.php
     └── seed_data.php
 ```
@@ -93,7 +103,7 @@ Ga naar `https://jouwdomein.nl/install.php`. Daar vul je in:
 - Een voorvoegsel voor de tabellen, optioneel — zie hieronder
 - Aantal dagen waar het weekmenu een gerecht voor kiest, standaard 7 —
   later aan te passen bij Instellingen, zie hieronder
-- Een adminwachtwoord dat je zelf kiest, minstens 8 tekens
+- Een gebruikersnaam en wachtwoord voor de eerste beheerder, minstens 8 tekens
 
 **Voorvoegsel.** Leeg laten mag: de tabellen heten dan `recipe`,
 `ingredient`, `menu_week` enzovoort. Deel je die ene database met een
@@ -113,8 +123,9 @@ nog, dan kan iedereen die het adres kent hem openen.
 
 ### 6. Klaar
 
-`https://jouwdomein.nl` toont het weekmenu. Recepten beheren gaat via
-`/admin.php`, met het adminwachtwoord dat je bij de installatie koos.
+`https://jouwdomein.nl` toont het weekmenu. Log in met de beheerder die je
+bij de installatie aanmaakte; andere gebruikers maak je aan in Recepten
+beheren, tabblad **Gebruikers**.
 
 ### Op je telefoon zetten
 
@@ -143,6 +154,7 @@ Elk recept krijgt een gewicht, en er wordt geloot met dat gewicht als kans.
 | Nog nooit gegeten | Hoog gewicht, komt snel aan de beurt |
 | Binnen 3 weken gepland of gegeten | Valt af |
 | Ingrediënt in huis | Kans ongeveer ×2 per raak ingrediënt |
+| Favoriet / zelden | Gewicht × 2 / × 0,3 |
 | Uitgebreid recept doordeweeks | Gewicht × 0,3 |
 | Uitgebreid recept in het weekend | Gewicht × 1,4 |
 
@@ -209,7 +221,9 @@ verschijnen.
 
 Per ongeluk een verkeerd product uitgesloten? In Recepten beheren,
 tabblad **Kortingen**, staat de lijst met een "wis"-knop erbij om dat
-terug te draaien.
+terug te draaien. Bovenaan dat tabblad staat ook wanneer het ophalen voor
+het laatst lukte; staat daar dat de laatste poging mislukte, dan is
+prijsprofeet.nl misschien veranderd of plat.
 
 ### Bijstellen
 
@@ -236,6 +250,10 @@ je te zien krijgt in het venster bij het genereren. Houd die kort.
 Vink je bij een recept **"Genoeg voor restjes"** aan, dan verschijnt in het
 weekmenu twee dagen later een knop om die dag zonder koken over te slaan.
 
+Bij **Hoe vaak** kies je *Favoriet* (komt vaker langs) of *Zelden* (komt
+minder vaak langs). Helemaal niet meer? Pauzeer het recept. In de tabel
+zie je per recept wanneer het voor het laatst op tafel stond.
+
 ## Restjes / dubbele kookdag
 
 Kookte je maandag iets dat ook voor dinsdag genoeg is? Zet bij dat recept
@@ -255,10 +273,54 @@ Het weekmenu is voor iedereen te bekijken: gerechten, bereiding,
 hoeveelheden en de boodschappenlijst. Handig om even te laten zien of
 door te sturen.
 
-Wijzigen kan alleen na inloggen met het adminwachtwoord: genereren, een
-dag opnieuw gooien, het aantal personen aanpassen en recepten beheren.
-Zonder login zijn die knoppen niet alleen verborgen, de api-bestanden
-weigeren het ook (401), dus rechtstreeks aanroepen helpt niemand.
+Wie inlogt krijgt een van drie rollen:
+
+| Rol | Mag |
+|---|---|
+| Lezer | Kijken, net als zonder inloggen, en meldingen aanzetten |
+| Bewerker | Ook: afvinken, menu maken en wijzigen, naar Bring, recepten beheren |
+| Beheerder | Ook: instellingen, voorraadlijst, kortingen, gebruikers, back-up |
+
+Gebruikers beheer je in Recepten beheren, tabblad **Gebruikers**. Er gaat
+geen mail rond: een beheerder zet zelf een nieuw wachtwoord. Er blijft
+altijd minstens één beheerder over.
+
+De knoppen zijn niet alleen verborgen: de api-bestanden weigeren het ook
+(401 zonder login, 403 met een te lage rol). Na vijf verkeerde
+inlogpogingen vanaf hetzelfde adres moet je een kwartier wachten.
+
+## Meldingen
+
+Ingelogd staat er een belletje bovenin. Tik erop om meldingen op dat
+apparaat aan te zetten; je krijgt meteen een testmelding. Op Android en de
+computer werkt dat in de browser; op een iPhone alleen als de app op het
+beginscherm staat (iOS 16.4 of nieuwer) en je hem daarvandaan opent.
+
+| Melding | Naar |
+|---|---|
+| Lijst naar Bring gestuurd, week op slot | Iedereen |
+| Een verstuurde week weer ontgrendeld | Beheerders |
+| Nog geen menu voor de komende week | Bewerkers en beheerders |
+
+Wie het zelf deed krijgt geen melding.
+
+De laatste komt van `cron.php`. Zet die in Plesk onder **Geplande taken**
+→ *Taak toevoegen* → *Een PHP-script uitvoeren*, met als script
+`httpdocs/cron.php`, bijvoorbeeld elke zondag om 18:00. Hij kijkt naar de
+week waar de volgende dag in valt. Via de browser doet `cron.php` niets.
+
+De sleutels voor de meldingen maakt de app zelf aan, de eerste keer dat
+iemand inlogt. Ze staan in de tabel `setting`; haal je die weg, dan moet
+iedereen meldingen opnieuw aanzetten.
+
+## Delen, afdrukken en back-up
+
+Bovenin staan knoppen om de link naar de week te delen en om menu en
+boodschappenlijst af te drukken (zonder knoppen en labels).
+
+Een beheerder kan onder **Instellingen** een back-up downloaden: alle
+tabellen als `.sql`, terug te zetten via phpMyAdmin in Plesk. Daar staan
+ook de versleutelde wachtwoorden in, dus bewaar hem niet zomaar ergens.
 
 ## De boodschappenlijst
 
@@ -301,11 +363,15 @@ van `bring.php?week=JJJJ-MM-DD` in.
 Draait de app al en haal je nieuwe bestanden binnen? Upload ze, ga daarna
 eenmalig naar `/upgrade.php` en verwijder dat bestand weer.
 
-Die zet ontbrekende kolommen klaar, vult de bereiding bij de meegeleverde
+Die zet ontbrekende kolommen en tabellen klaar, vult de bereiding bij de meegeleverde
 recepten en voegt nieuwe toe. Je eigen recepten blijven ongemoeid.
 Meegeleverde recepten die uit de lijst zijn gehaald worden op non-actief
 gezet, niet verwijderd, zodat je weekgeschiedenis heel blijft. Via
 Recepten beheren kun je ze weer aanzetten.
+
+Kom je van een versie met één adminwachtwoord, dan maakt `upgrade.php` de
+eerste beheerder aan: gebruikersnaam `admin`, met het wachtwoord waarmee je
+tot dan toe inlogde. Maak daarna je eigen accounts aan.
 
 ### Hoeveelheden en aantal personen
 
@@ -345,5 +411,5 @@ nieuwe cachenaam zorgt dat iedereen het meteen ziet.
 
 ## Vereisten
 
-- PHP 8.1 of hoger (8.4 aanbevolen), met PDO MySQL en mbstring
+- PHP 8.1 of hoger (8.4 aanbevolen), met PDO MySQL, mbstring, curl en openssl
 - MySQL of MariaDB

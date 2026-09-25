@@ -41,6 +41,7 @@ try {
         ['{menu_entry}',        'menu_entry',        'servings',  'ALTER TABLE {menu_entry} ADD COLUMN servings TINYINT UNSIGNED NOT NULL DEFAULT 3'],
         ['{menu_entry}',        'menu_entry',        'is_leftover', 'ALTER TABLE {menu_entry} ADD COLUMN is_leftover TINYINT(1) NOT NULL DEFAULT 0 AFTER is_junkfood'],
         ['{menu_week}',         'menu_week',         'locked_at', 'ALTER TABLE {menu_week} ADD COLUMN locked_at DATETIME NULL'],
+        ['{recipe}',            'recipe',            'preference', 'ALTER TABLE {recipe} ADD COLUMN preference TINYINT NOT NULL DEFAULT 0 AFTER makes_leftovers'],
     ];
 
     $addedColumns = [];
@@ -138,6 +139,52 @@ try {
     $log[] = 'Kortingscache geleegd, wordt bij het volgende weekmenu opnieuw opgehaald.';
 
     $log[] = 'Aanbiedingen-tabellen staan klaar.';
+
+    /* --- 1e. gebruikers, inlogpogingen en pushmeldingen --- */
+    $pdo->exec(
+        'CREATE TABLE IF NOT EXISTS {app_user} (
+            id            INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+            username      VARCHAR(60)  NOT NULL,
+            password_hash VARCHAR(255) NOT NULL,
+            role          VARCHAR(10)  NOT NULL DEFAULT \'reader\',
+            created_at    DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            UNIQUE KEY uniq_username (username)
+         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci'
+    );
+    $pdo->exec(
+        'CREATE TABLE IF NOT EXISTS {login_attempt} (
+            id           INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+            ip           VARCHAR(45) NOT NULL,
+            attempted_at DATETIME    NOT NULL,
+            KEY idx_ip (ip, attempted_at)
+         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci'
+    );
+    $pdo->exec(
+        'CREATE TABLE IF NOT EXISTS {push_subscription} (
+            id         INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+            user_id    INT UNSIGNED NOT NULL,
+            endpoint   VARCHAR(500) CHARACTER SET ascii NOT NULL,
+            p256dh     VARCHAR(120) NOT NULL,
+            auth       VARCHAR(40)  NOT NULL,
+            created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            UNIQUE KEY uniq_endpoint (endpoint),
+            CONSTRAINT `' . DB_PREFIX . 'fk_push_user` FOREIGN KEY (user_id)
+                REFERENCES `' . DB_PREFIX . 'app_user`(id) ON DELETE CASCADE
+         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci'
+    );
+
+    // Eerste beheerder uit het oude, losse adminwachtwoord. Daarna doet
+    // ADMIN_PASSWORD in config.local.php niets meer.
+    if ((int)$pdo->query('SELECT COUNT(*) FROM {app_user}')->fetchColumn() === 0) {
+        if (!defined('ADMIN_PASSWORD') || ADMIN_PASSWORD === 'VERANDER_MIJ_OOK') {
+            throw new RuntimeException('Geen ADMIN_PASSWORD in inc/config.local.php om de eerste beheerder mee aan te maken.');
+        }
+        $pdo->prepare("INSERT INTO {app_user} (username, password_hash, role) VALUES ('admin', ?, 'admin')")
+            ->execute([password_hash(ADMIN_PASSWORD, PASSWORD_DEFAULT)]);
+        $log[] = 'Eerste beheerder aangemaakt: gebruikersnaam <strong>admin</strong>, met het wachtwoord '
+               . 'waarmee je tot nu toe inlogde. Maak onder Gebruikers je eigen accounts aan.';
+    }
+    $log[] = 'Gebruikers en meldingen staan klaar.';
 
     /* --- 2. bestaande recepten ophalen --- */
     $existing = [];

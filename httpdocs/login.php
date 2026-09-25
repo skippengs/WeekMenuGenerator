@@ -3,13 +3,14 @@ declare(strict_types=1);
 define('WEEKMENU', true);
 
 require __DIR__ . '/inc/config.php';
+require __DIR__ . '/inc/db.php';
 require __DIR__ . '/inc/helpers.php';
 require __DIR__ . '/inc/auth.php';
 
 startSession();
 
-if (isAdmin()) {
-    header('Location: admin.php');
+if (currentUser() !== null) {
+    header('Location: index.php');
     exit;
 }
 
@@ -18,13 +19,14 @@ $error = null;
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (!checkCsrf($_POST['csrf'] ?? null)) {
         $error = 'Sessie verlopen. Probeer het opnieuw.';
-    } elseif (attemptLogin((string)($_POST['password'] ?? ''))) {
-        header('Location: admin.php');
-        exit;
     } else {
+        $error = attemptLogin((string)($_POST['username'] ?? ''), (string)($_POST['password'] ?? ''));
+        if ($error === null) {
+            header('Location: index.php');
+            exit;
+        }
         // Kleine vertraging, zodat blind proberen weinig zin heeft.
         usleep(400000);
-        $error = 'Onjuist wachtwoord.';
     }
 }
 ?>
@@ -51,8 +53,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         <input type="hidden" name="csrf" value="<?= esc(csrfToken()) ?>">
 
         <div class="field">
+            <label for="un">Gebruikersnaam</label>
+            <input type="text" id="un" name="username" required autofocus autocomplete="username"
+                   autocapitalize="none" value="<?= esc((string)($_POST['username'] ?? '')) ?>">
+        </div>
+
+        <div class="field">
             <label for="pw">Wachtwoord</label>
-            <input type="password" id="pw" name="password" required autofocus autocomplete="current-password">
+            <input type="password" id="pw" name="password" required autocomplete="current-password">
         </div>
 
         <button class="btn btn-primary" type="submit">Inloggen</button>

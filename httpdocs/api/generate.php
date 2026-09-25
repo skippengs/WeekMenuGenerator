@@ -17,7 +17,7 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 }
 
 // Kijken mag iedereen, wijzigen niet.
-requireAdminJson();
+requireRoleJson('editor');
 
 $input = jsonIn();
 

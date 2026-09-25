@@ -18,9 +18,10 @@ require __DIR__ . '/inc/auth.php';
 require __DIR__ . '/inc/settings.php';
 require __DIR__ . '/inc/deals.php';
 require __DIR__ . '/inc/generator.php';
+require __DIR__ . '/inc/push.php';
 
 startSession();
-requireAdmin();
+requireRole('editor');
 
 $pdo     = db();
 $current = weekStart($_GET['week'] ?? null);
@@ -40,6 +41,13 @@ if ($week['locked_at'] === null) {
     // blijft kloppen ook als prijsprofeet.nl straks niet bereikbaar is of
     // de actie voorbij blijkt.
     snapshotWeekDeals($pdo, $week['id']);
+
+    notifyUsers($pdo, 'reader', [
+        'title' => 'Boodschappen staan in Bring',
+        'body'  => currentUser()['username'] . ' heeft de lijst voor ' . weekLabel($current)
+                 . ' naar Bring gestuurd. Het menu staat nu vast.',
+        'url'   => 'index.php?week=' . $current,
+    ], currentUser()['id']);
 }
 
 $scheme = empty($_SERVER['HTTPS']) ? 'http' : 'https';
