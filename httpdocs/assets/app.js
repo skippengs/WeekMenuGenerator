@@ -620,6 +620,93 @@
         });
     });
 
+    /* ---------- ⋯-menu op een dag ---------- */
+
+    // Een open menu gaat dicht bij een klik ergens anders.
+    document.addEventListener('click', function (e) {
+        document.querySelectorAll('.day-menu[open]').forEach(function (m) {
+            if (!m.contains(e.target) || e.target.closest('.day-menu-list button')) {
+                m.open = false;
+            }
+        });
+    });
+
+    /* ---------- twee dagen wisselen ---------- */
+
+    var swapModal = document.getElementById('swapModal');
+
+    function closeSwap() {
+        if (swapModal) { swapModal.hidden = true; }
+    }
+
+    document.addEventListener('click', function (e) {
+        var open = e.target.closest('[data-swap-open]');
+        if (open && swapModal) {
+            var from    = parseInt(open.getAttribute('data-swap-open'), 10);
+            var options = JSON.parse(open.getAttribute('data-swap-options'));
+            var list    = document.getElementById('swapList');
+
+            document.getElementById('swapTitle').textContent =
+                dayEl(from).querySelector('.day-name').textContent + ' wisselen met…';
+            list.innerHTML = '';
+
+            options.forEach(function (o) {
+                var li  = document.createElement('li');
+                var btn = document.createElement('button');
+                btn.type = 'button';
+                btn.className = 'swap-option';
+                btn.disabled = o.reason !== null;
+                btn.setAttribute('data-swap-from', from);
+                btn.setAttribute('data-swap-to', o.day);
+
+                var day = document.createElement('strong');
+                day.textContent = o.name;
+                var what = document.createElement('span');
+                what.textContent = o.what;
+                btn.appendChild(day);
+                btn.appendChild(what);
+                if (o.reason) {
+                    var why = document.createElement('small');
+                    why.textContent = o.reason;
+                    btn.appendChild(why);
+                }
+                li.appendChild(btn);
+                list.appendChild(li);
+            });
+
+            swapModal.hidden = false;
+            return;
+        }
+
+        if (e.target.closest('[data-close-swap]')) {
+            closeSwap();
+            return;
+        }
+
+        var pick = e.target.closest('[data-swap-to]');
+        if (!pick) { return; }
+
+        pick.disabled = true;
+        postJson('api/swap.php', {
+            csrf: cfg.csrf,
+            week_id: cfg.weekId,
+            day_a: parseInt(pick.getAttribute('data-swap-from'), 10),
+            day_b: parseInt(pick.getAttribute('data-swap-to'), 10)
+        }).then(function () {
+            // Restjesknoppen, labels en vrije dagen verschuiven allemaal mee.
+            window.location.reload();
+        }).catch(function (err) {
+            pick.disabled = false;
+            toast(err.message, true);
+        });
+    });
+
+    document.addEventListener('keydown', function (e) {
+        if (e.key === 'Escape' && swapModal && !swapModal.hidden) {
+            closeSwap();
+        }
+    });
+
     renderShopping();
 
     /* ---------- admin: tabbladen ---------- */

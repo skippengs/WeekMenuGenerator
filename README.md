@@ -16,6 +16,8 @@ op gewone PHP-webhosting met MySQL.
 - Aantal dagen waar een menu voor gemaakt wordt is instelbaar, bijvoorbeeld
   een werkweek van vijf dagen zonder het weekend
 - Recept genoeg voor twee dagen? Zet "restjes" aan de knop, twee dagen later
+- Twee dagen wisselen via het ⋯-menu op een dag, ook naar een vrije
+  zaterdag of zondag
 - Houdt bij het kiezen rekening met actuele aanbiedingen bij AH, Jumbo,
   Aldi en PLUS, en laat op de boodschappenlijst zien welk product in de
   aanbieding is en bij welke winkel
@@ -74,6 +76,7 @@ httpdocs/
 │   ├── generate.php
 │   ├── reroll.php
 │   ├── leftover.php
+│   ├── swap.php
 │   ├── servings.php
 │   ├── check.php
 │   ├── lock.php
@@ -304,6 +307,23 @@ op de boodschappenlijst.
 Dit gaat altijd met de hand — de generator plant nooit uit zichzelf een
 restjesdag in. Wil je het toch los weer maken, klik dan nogmaals op de
 (actief getoonde) knop.
+
+Plan je minder dan zeven dagen, dan tellen zaterdag en zondag gewoon mee
+als plek voor restjes: een gerecht op woensdag of donderdag kan zijn
+restjes op een vrije zaterdag kwijt.
+
+## Dagen wisselen
+
+Elke dag heeft rechts een **⋯**-menu met **"Wisselen met…"**. Kies een
+andere dag en de twee ruilen alles: gerecht, restjes, personen en de
+vriezer-melding. Ook een vrije dag (bijvoorbeeld het weekend in een week
+van vijf dagen) kan gekozen worden; het gerecht verhuist er dan heen en de
+oude dag wordt vrij. Bewerkers zien vrije dagen als een smalle, gestippelde
+kaart, voor anderen blijven ze weg.
+
+Eén regel: na het wisselen moeten restjes nog altijd ná het gerecht zelf
+komen. Dagen waarvoor dat niet klopt staan in het venster uitgegrijsd, met
+de reden erbij. Vrijdag (junkfood) doet niet mee.
 
 ## Wie mag wat
 

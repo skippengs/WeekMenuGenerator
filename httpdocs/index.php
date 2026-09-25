@@ -28,9 +28,13 @@ $shopping = $week ? shoppingList($pdo, $week['id']) : [];
 $leftoverSourceDay  = [];
 $leftoverSuggestion = [];
 if ($week !== null) {
-    // Hoeveel dagen deze specifieke week echt heeft (kan korter zijn dan 7,
-    // en dat blijft zo ook als de instelling daarna weer verandert).
-    $weekDayCount = count($week['days']);
+    // Recepten die al een restjesdag hebben krijgen geen tweede knop.
+    $hasLeftoverDay = [];
+    foreach ($week['days'] as $d) {
+        if (!empty($d['is_leftover']) && $d['id'] !== null) {
+            $hasLeftoverDay[$d['id']] = true;
+        }
+    }
 
     foreach ($week['days'] as $di => $d) {
         if (!empty($d['is_leftover']) && $d['id'] !== null) {
@@ -42,8 +46,9 @@ if ($week !== null) {
             }
         }
 
-        if ($d['id'] !== null && empty($d['is_leftover']) && !empty($d['makes_leftovers'])) {
-            $target = leftoverTargetDay($di, $weekDayCount);
+        if ($d['id'] !== null && empty($d['is_leftover']) && !empty($d['makes_leftovers'])
+            && !isset($hasLeftoverDay[$d['id']])) {
+            $target = leftoverTargetDay($di);
             if ($target !== null && empty($week['days'][$target]['is_leftover'])) {
                 $leftoverSuggestion[$target] = ['source_day' => $di, 'name' => $d['name']];
             }
@@ -55,6 +60,47 @@ if ($week !== null) {
 // maar afstrepen tijdens het boodschappen doen moet gewoon kunnen.
 $isLocked    = $week !== null && $week['locked_at'] !== null;
 $mayEditMenu = $mayEdit && !$isLocked;
+
+// Een dag zonder gerecht buiten de geplande dagen (of verhuisd) is "vrij":
+// alleen bewerkers zien er een smalle kaart van, om iets heen te wisselen
+// of er restjes op te zetten.
+$planned = planningDays($pdo);
+$isFreeDay = static fn(int $i): bool => $week !== null && $i !== JUNK_DAY_INDEX
+    && (!isset($week['days'][$i]) || ($week['days'][$i]['id'] === null && $i >= $planned));
+
+// Het ⋯-menu op een kaart. Nu alleen wisselen; ruimte voor meer.
+$dayMenu = static function (int $i) use (&$swapOptions): string {
+    if (!isset($swapOptions[$i])) {
+        return '';
+    }
+    return '<details class="day-menu">'
+        . '<summary class="day-menu-btn" title="Meer" aria-label="Meer"><i class="fa-solid fa-ellipsis" aria-hidden="true"></i></summary>'
+        . '<div class="day-menu-list">'
+        . '<button type="button" data-swap-open="' . $i . '" data-swap-options="' . esc(json_encode($swapOptions[$i])) . '">'
+        . '<i class="fa-solid fa-right-left" aria-hidden="true"></i> Wisselen met…</button>'
+        . '</div></details>';
+};
+
+// Per dag: met welke andere dagen kun je wisselen, en waarom niet.
+$swapOptions = [];
+if ($mayEditMenu) {
+    foreach (DAY_NAMES as $i => $unused) {
+        foreach (DAY_NAMES as $j => $name) {
+            if ($i === $j || $i === JUNK_DAY_INDEX || $j === JUNK_DAY_INDEX) {
+                continue;
+            }
+            $e = $week['days'][$j] ?? null;
+            $swapOptions[$i][] = [
+                'day'    => $j,
+                'name'   => $name,
+                'what'   => $isFreeDay($j) ? 'Vrij'
+                    : ($e['id'] === null ? 'Geen recept'
+                    : (!empty($e['is_leftover']) ? 'Restjes' : $e['name'])),
+                'reason' => swapProblem($week['days'], $i, $j),
+            ];
+        }
+    }
+}
 
 $prevWeek = (new DateTimeImmutable($current))->modify('-7 days')->format('Y-m-d');
 $nextWeek = (new DateTimeImmutable($current))->modify('+7 days')->format('Y-m-d');
@@ -214,6 +260,27 @@ $recipeCount = (int)$pdo->query('SELECT COUNT(*) FROM {recipe} WHERE is_active =
 
         <section class="days" data-week-id="<?= (int)$week['id'] ?>">
             <?php foreach (DAY_NAMES as $i => $dayName): ?>
+                <?php if ($isFreeDay($i)): ?>
+                    <?php if (!$mayEditMenu) { continue; } ?>
+                    <article class="day day-free" data-day="<?= $i ?>">
+                        <div class="day-head">
+                            <span class="day-name"><?= esc($dayName) ?></span>
+                            <span class="day-date"><?= esc(dayDate($current, $i)) ?></span>
+                        </div>
+                        <div class="day-body"><span class="free-label">Vrij</span></div>
+                        <div class="day-actions">
+                            <?php if (isset($leftoverSuggestion[$i])): ?>
+                                <button class="btn btn-ghost btn-leftover" data-leftover-assign="<?= $i ?>"
+                                        data-leftover-source="<?= $leftoverSuggestion[$i]['source_day'] ?>"
+                                        title="Dit gerecht was genoeg voor twee dagen">
+                                    Restjes van <?= esc(DAY_NAMES[$leftoverSuggestion[$i]['source_day']]) ?>
+                                </button>
+                            <?php endif; ?>
+                            <?= $dayMenu($i) ?>
+                        </div>
+                    </article>
+                    <?php continue; ?>
+                <?php endif; ?>
                 <?php if (!array_key_exists($i, $week['days'])) { continue; } ?>
                 <?php
                 $entry      = $week['days'][$i];
@@ -305,6 +372,7 @@ $recipeCount = (int)$pdo->query('SELECT COUNT(*) FROM {recipe} WHERE is_active =
                                         Ander gerecht
                                     </button>
                                 <?php endif; ?>
+                                <?= $dayMenu($i) ?>
                             <?php elseif (!$isLeftover): ?>
                                 <span class="chip chip-soft"><?= $dayServings ?> pers.</span>
                             <?php endif; ?>
@@ -500,6 +568,28 @@ $recipeCount = (int)$pdo->query('SELECT COUNT(*) FROM {recipe} WHERE is_active =
         <footer class="modal-foot">
             <div class="modal-foot-right">
                 <button class="btn btn-ghost" data-close-deal>Sluiten</button>
+            </div>
+        </footer>
+    </div>
+</div>
+
+<!-- Wisselvenster -------------------------------------------------- -->
+<div class="modal" id="swapModal" hidden>
+    <div class="modal-backdrop" data-close-swap></div>
+
+    <div class="modal-card modal-card-deal" role="dialog" aria-modal="true" aria-labelledby="swapTitle">
+        <header class="modal-head">
+            <h2 id="swapTitle">&nbsp;</h2>
+            <button class="modal-x" data-close-swap aria-label="Sluiten">&times;</button>
+        </header>
+
+        <div class="modal-body">
+            <ul class="swap-list" id="swapList"></ul>
+        </div>
+
+        <footer class="modal-foot">
+            <div class="modal-foot-right">
+                <button class="btn btn-ghost" data-close-swap>Annuleren</button>
             </div>
         </footer>
     </div>
