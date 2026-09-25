@@ -340,14 +340,12 @@ function rerollDay(PDO $pdo, int $weekId, int $dayIndex): ?array
     // vrij gekozen recept. De knop in de UI voor zo'n dag is revertLeftover()
     // (terug naar leeg), maar deze weg blijft geldig als iets anders ooit
     // rerollDay() op een restjesdag aanroept.
-    $updated = $pdo->prepare(
-        'UPDATE {menu_entry} SET recipe_id = ?, is_leftover = 0, thaw = 0 WHERE week_id = ? AND day_index = ?'
-    );
-    $updated->execute([$pick['id'], $weekId, $dayIndex]);
-
-    if ($updated->rowCount() === 0) {
-        return null;
-    }
+    // Een vrije dag (na wisselen) heeft soms geen rij: dan komt er een bij.
+    $pdo->prepare(
+        'INSERT INTO {menu_entry} (week_id, day_index, recipe_id, servings)
+              VALUES (?, ?, ?, ?)
+         ON DUPLICATE KEY UPDATE recipe_id = VALUES(recipe_id), is_leftover = 0, thaw = 0'
+    )->execute([$weekId, $dayIndex, $pick['id'], defaultServings($pdo)]);
 
     // Was dit de brondag van een al aangewezen restjesdag, dan klopt die
     // niet meer - het gerecht waar hij restjes van zou zijn staat hier

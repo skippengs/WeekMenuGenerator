@@ -319,7 +319,7 @@ andere dag en de twee ruilen alles: gerecht, restjes, personen en de
 vriezer-melding. Ook een vrije dag (bijvoorbeeld het weekend in een week
 van vijf dagen) kan gekozen worden; het gerecht verhuist er dan heen en de
 oude dag wordt vrij. Bewerkers zien vrije dagen als een smalle, gestippelde
-kaart, voor anderen blijven ze weg.
+kaart met een knop **"Kies gerecht"**, voor anderen blijven ze weg.
 
 Eén regel: na het wisselen moeten restjes nog altijd ná het gerecht zelf
 komen. Dagen waarvoor dat niet klopt staan in het venster uitgegrijsd, met

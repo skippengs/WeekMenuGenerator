@@ -276,6 +276,11 @@ $recipeCount = (int)$pdo->query('SELECT COUNT(*) FROM {recipe} WHERE is_active =
                                     Restjes van <?= esc(DAY_NAMES[$leftoverSuggestion[$i]['source_day']]) ?>
                                 </button>
                             <?php endif; ?>
+                            <?php if ($i !== JUNK_DAY_INDEX): ?>
+                                <button class="btn btn-reroll" data-reroll="<?= $i ?>" title="Kies een gerecht voor deze dag">
+                                    Kies gerecht
+                                </button>
+                            <?php endif; ?>
                             <?= $dayMenu($i) ?>
                         </div>
                     </article>
