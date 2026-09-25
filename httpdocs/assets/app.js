@@ -738,14 +738,6 @@
 
         if (data.ingredient_names !== undefined) { cfg.ingredientNames = data.ingredient_names; }
 
-        var dealWordBody = document.getElementById('dealWordTableBody');
-        if (dealWordBody && data.deal_word_table !== undefined) { dealWordBody.innerHTML = data.deal_word_table; }
-
-        var dealWordCount = document.getElementById('dealWordCount');
-        if (dealWordCount && data.deal_word_count !== undefined) {
-            dealWordCount.textContent = data.deal_word_count + ' geleerde woorden';
-        }
-
         var dealExclusionBody = document.getElementById('dealExclusionTableBody');
         if (dealExclusionBody && data.deal_exclusion_table !== undefined) { dealExclusionBody.innerHTML = data.deal_exclusion_table; }
 
@@ -863,27 +855,6 @@
                 })
                 .catch(function (err) {
                     deleteBtn.disabled = false;
-                    toast(err.message, true);
-                });
-            return;
-        }
-
-        var deleteWordBtn = e.target.closest('[data-delete-deal-word]');
-        if (deleteWordBtn) {
-            e.preventDefault();
-
-            var word = deleteWordBtn.getAttribute('data-delete-deal-word');
-            if (!confirm('"' + word + '" niet meer als geleerd woord gebruiken?')) { return; }
-
-            deleteWordBtn.disabled = true;
-
-            postJson('api/admin_deal_word_delete.php', { csrf: cfg.csrf, word: word })
-                .then(function (data) {
-                    applyAdminData(data);
-                    toast(data.notice);
-                })
-                .catch(function (err) {
-                    deleteWordBtn.disabled = false;
                     toast(err.message, true);
                 });
             return;

@@ -89,45 +89,6 @@ function seedIngredients(): array
 }
 
 /**
- * Startset geleerde woorden voor {deal_exclusion_word} (zie CLAUDE.md,
- * "Geleerde woorden: ingredient-overstijgend uitsluiten"). Komt uit een
- * eenmalige handmatige beoordeling van ~65 kenmerkende ingredienten tegen
- * de echte prijsprofeet.nl-data.
- *
- * Bewust NIET de volledige lijst van die sessie: woorden die zelf een
- * ingredientnaam zijn (kaas, paprika, tomaat, wortel, spinazie, rookworst,
- * champignon, aardappel, ei, satésaus) zijn eruit gehaald - die zouden bij
- * een héél ander ingredient (of, bij satésaus, zelfs bij zichzelf) een
- * legitiem product wegfilteren, terwijl ze hier juist "geen aanwijzing van
- * een fout product" hadden moeten zijn. Variant-woorden die een geldige
- * uitvoering van het ingredient beschrijven in plaats van een ander
- * product (kleurvarianten rode/gele/lente - "gele paprika", "lente-ui";
- * verse - "verse spinazie"; volkoren - "volkoren macaroni"; kleintje) zijn
- * om dezelfde reden eruit. Merknamen die toevallig langskwamen (garnier,
- * freezie, good, goodpasta, presto) en pure ruis (a, in, jaar, losse
- * maatvoering als "70g") zijn ook geschrapt. "met" hoorde er ook niet bij
- * - dat woord ontbrak simpelweg in DEAL_NOISE_WORDS, wat inmiddels is
- * rechtgezet.
- */
-function seedDealExclusionWords(): array
-{
-    return [
-        'airfryer', 'avocado', 'baked', 'bieten', 'bleu', 'bolognese', 'bosbes',
-        'carbonara', 'chili', 'chips', 'chocolade', 'conditioner', 'cordon',
-        'créme', 'crispy', 'crunch', 'cup', 'erwtensoep', 'filled', 'framboos',
-        'franse', 'gebraden', 'gevulde', 'glazuur', 'grillworst', 'groentesap',
-        'hasselback', 'indonesische', 'italiaans', 'jus', 'kant', 'karamel',
-        'kerriesoep', 'kids', 'klaar', 'krokante', 'load',
-        'luchtige', 'maaltijdmix', 'mango', 'masala', 'mix', 'mozzarella',
-        'ovengroente', 'pesto', 'pinda', 'pomodoro', 'pop', 'potatoes',
-        'ready', 'roasted', 'roerbakgroente', 'roomkaas', 'salade',
-        'shea', 'slaverrijker', 'snackbox', 'soup', 'spiced',
-        'stamppot', 'toscana', 'tratorria', 'venkel', 'verspakket',
-        'wavy', 'zeezout',
-    ];
-}
-
-/**
  * Startset recepten: gewone Nederlandse doordeweekse kost.
  *
  * ingredients = alleen de kenmerkende dingen. Die bepalen of een recept

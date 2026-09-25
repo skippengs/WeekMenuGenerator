@@ -258,13 +258,6 @@ if (!$alreadyInstalled && $_SERVER['REQUEST_METHOD'] === 'POST') {
                         REFERENCES `{$p}ingredient`(id) ON DELETE CASCADE
                 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci",
 
-            $p . 'deal_exclusion_word' => "
-                CREATE TABLE IF NOT EXISTS `{$p}deal_exclusion_word` (
-                    word      VARCHAR(40) NOT NULL PRIMARY KEY,
-                    hits      INT UNSIGNED NOT NULL DEFAULT 1,
-                    last_seen DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
-                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci",
-
             $p . 'week_deal' => "
                 CREATE TABLE IF NOT EXISTS `{$p}week_deal` (
                     week_id            INT UNSIGNED NOT NULL,

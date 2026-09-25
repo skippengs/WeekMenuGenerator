@@ -17,13 +17,28 @@ const DEALS_SETTING_CHECKED_AT = 'deals_checked_at';
 
 // Woorden die nooit een aanwijzing zijn dat een product afwijkt: lidwoorden,
 // voegwoorden en de eenheden/aanduidingen die toch al overal in productnamen
-// staan. Blijft klein met opzet - dit is ruis wegfilteren, niet de vertaalslag
-// van welk woord een ander product betekent (dat doet dealExtraWords()/de
-// aangeleerde woordenlijst, per klik op "klopt niet").
+// staan.
 const DEAL_NOISE_WORDS = [
     'de', 'het', 'een', 'en', 'van', 'voor', 'bij', 'per', 'ca', 'circa', 'met',
     'stuk', 'stuks', 'g', 'gram', 'kg', 'ml', 'l', 'liter', 'el', 'tl',
     'pak', 'pakje', 'pot', 'bosje', 'blik', 'blikje', 'plak', 'plakken', 'x',
+    'in', 'fles', 'multipack', 'voordeelpack', 'kleinverpakking', 'voordeelverpakking',
+];
+
+// Algemene aanduidingen die een product níet tot iets anders maken: kleur,
+// bio, vers, soort aardappel/kaas/melk. Een product komt alleen door de
+// filter als elk woord in de naam het ingredient, het merk, de winkel, ruis
+// of een woord uit deze lijst is. Een onbekend woord ("mix", "gebraden",
+// "chips", "ovenschotel") betekent dus: ander product. Mist er hier een
+// woord, dan mis je hooguit een aanbieding - geen verkeerde op de lijst.
+const DEAL_VARIANT_WORDS = [
+    'rode', 'rood', 'gele', 'geel', 'groene', 'groen', 'oranje', 'witte', 'wit',
+    'bio', 'biologisch', 'biologische', 'vers', 'verse', 'scharrel', 'naturel',
+    'gemengd', 'gemengde', 'grote', 'groot', 'kleine', 'klein', 'extra', 'kwaliteit',
+    'mager', 'magere', 'los', 'losse', 'hele', 'heel', 'half', 'om',
+    'kruimig', 'kruimige', 'vastkokend', 'vastkokende', 'vrij',
+    'jong', 'jonge', 'belegen', 'oud', 'oude', 'geraspte', 'plakken',
+    'halfvol', 'halfvolle', 'vol', 'volle', 'gesneden', 'fijngesneden', 'manis',
 ];
 
 /**
@@ -85,30 +100,39 @@ function dealWords(string $text): array
     ));
 }
 
+/** Grove stam voor enkelvoud/meervoud: "kipfilets", "aardappelen" -> "kipfilet", "aardappel". */
+function dealStem(string $word): string
+{
+    return preg_replace('/(en|s)$/u', '', $word) ?? $word;
+}
+
 /**
- * Namen van de winkels zelf ("jumbo", "ah", ...) mogen nooit als geleerd
- * woord eindigen: prijsprofeet.nl levert het merk niet bij elk product
- * (bijv. bij een huismerk-fout in hun eigen data), en zonder deze vangnet
- * zou zo'n losse winkelnaam per ongeluk elk toekomstig product van diezelfde
- * winkel bij een heel ander ingredient kunnen afkeuren.
+ * Is dit product echt het ingredient? Alle ingredientwoorden moeten erin
+ * staan, en elk ander woord moet merk, winkel, ruis of een algemene
+ * aanduiding (DEAL_VARIANT_WORDS) zijn. Vergelijkt op stam, zodat
+ * "2 kipfilets" en "Jumbo Wortelen" gewoon meetellen.
+ */
+function dealIsIngredientMatch(string $ingredientName, ?string $brand, string $productName): bool
+{
+    $ingredient = array_map('dealStem', dealWords($ingredientName));
+    $product    = array_map('dealStem', dealWords($productName));
+    if ($ingredient === [] || array_diff($ingredient, $product) !== []) {
+        return false;
+    }
+    $known = array_map('dealStem', array_merge(
+        $ingredient, dealWords((string)$brand), DEAL_NOISE_WORDS, DEAL_VARIANT_WORDS, dealStoreWords()
+    ));
+    return array_diff($product, $known) === [];
+}
+
+/**
+ * Namen van de winkels zelf ("jumbo", "ah", ...): prijsprofeet.nl levert
+ * het merk niet bij elk product, dus de winkelnaam in "Jumbo Prei" moet
+ * ook zonder merkveld als bekend woord tellen.
  */
 function dealStoreWords(): array
 {
     return array_map(static fn(string $label): string => mb_strtolower($label, 'UTF-8'), array_values(DEALS_RETAILERS));
-}
-
-/**
- * Woorden in $productName die niet van het ingredient zelf, het merk of
- * ruis (eenheid, lidwoord) komen - dus wat een "Jumbo Gebraden Gehakt" tot
- * iets anders maakt dan het ingredient "gehakt": ["gebraden"]. Wordt aan de
- * ene kant gebruikt om van een klik op "klopt niet" een woord te leren, aan
- * de andere kant om te checken of een nieuw gevonden product zo'n geleerd
- * woord bevat.
- */
-function dealExtraWords(string $ingredientName, ?string $brand, string $productName): array
-{
-    $known = array_merge(dealWords($ingredientName), dealWords((string)$brand), DEAL_NOISE_WORDS, dealStoreWords());
-    return array_values(array_diff(dealWords($productName), $known));
 }
 
 /**
@@ -128,51 +152,12 @@ function fetchDealExclusions(PDO $pdo, int $ingredientId): array
 }
 
 /**
- * Woorden die je al eens hebt afgekeurd bij een ander ingredient (bijv.
- * "gebraden", geleerd van "gehakt") - gaan meteen mee als reden om een
- * nieuw gevonden product bij een willekeurig ander ingredient te weren,
- * zonder dat daar apart voor geklikt hoeft te worden.
- */
-function fetchLearnedExclusionWords(PDO $pdo): array
-{
-    $words = [];
-    foreach ($pdo->query('SELECT word FROM {deal_exclusion_word}') as $row) {
-        $words[$row['word']] = true;
-    }
-    return $words;
-}
-
-/**
  * Sluit een product uit voor dit ingredient/deze winkel ("klopt niet" in
  * het kortingsvenster) en haalt de nu gecachte deal van die winkel meteen
  * weg, zodat de badge niet pas bij de volgende refreshDeals() klopt.
- *
- * Leert er meteen ook van: de woorden in de productnaam die niet van het
- * ingredient of het merk komen (bijv. "gebraden" bij "Jumbo Gebraden
- * Gehakt" onder ingredient "gehakt") gaan in {deal_exclusion_word}, zodat
- * eenzelfde soort fout bij een heel ander ingredient niet apart
- * aangeklikt hoeft te worden.
  */
 function excludeDeal(PDO $pdo, int $ingredientId, string $retailer, string $productKey): void
 {
-    $current = $pdo->prepare('SELECT product_name, brand FROM {deal} WHERE ingredient_id = ? AND retailer = ?');
-    $current->execute([$ingredientId, $retailer]);
-    $row = $current->fetch();
-
-    if ($row !== false) {
-        $nameStmt = $pdo->prepare('SELECT name FROM {ingredient} WHERE id = ?');
-        $nameStmt->execute([$ingredientId]);
-        $ingredientName = (string)$nameStmt->fetchColumn();
-
-        $learn = $pdo->prepare(
-            'INSERT INTO {deal_exclusion_word} (word, hits, last_seen) VALUES (?, 1, NOW())
-                 ON DUPLICATE KEY UPDATE hits = hits + 1, last_seen = NOW()'
-        );
-        foreach (dealExtraWords($ingredientName, $row['brand'], $row['product_name']) as $word) {
-            $learn->execute([$word]);
-        }
-    }
-
     $pdo->prepare(
         'INSERT IGNORE INTO {deal_exclusion} (ingredient_id, retailer, product_key) VALUES (?, ?, ?)'
     )->execute([$ingredientId, $retailer, $productKey]);
@@ -188,33 +173,26 @@ function excludeDeal(PDO $pdo, int $ingredientId, string $retailer, string $prod
  * bij zat - dat onderscheid bepaalt straks of de cache blijft staan of
  * leeggemaakt wordt.
  *
- * De zoek-api matcht fuzzy: op "gehakt" komt ook "Go-Tan Gehakte knoflook"
- * mee. Daarom filteren we zelf op woordgrens, de ingredientnaam moet als
- * geheel in de productnaam voorkomen. Dat vangt niet elk fout-positief:
- * "Jumbo Gebraden Gehakt" bevat het woord "gehakt" evengoed, terwijl het
- * een ander product is. Voor dat soort gevallen is er $exclusions - zelf
- * aangevinkt via de kortingsknop "klopt niet" - dat hier per winkel wordt
- * weggefilterd vóórdat de goedkoopste gekozen wordt. $learnedWords is
- * hetzelfde idee maar dan ingredient-overstijgend: woorden die je ooit bij
- * een ánder ingredient hebt afgekeurd ("gebraden") weren een product hier
- * meteen mee, ook al is dit de eerste keer dat dit ingredient het tegenkomt.
+ * De zoek-api matcht fuzzy en geeft veel bijvangst ("Mix voor gehakt",
+ * "Lays Chips paprika", "AH Gebraden gehakt"). dealIsIngredientMatch()
+ * laat alleen producten door waarvan de naam niets anders zegt dan het
+ * ingredient plus merk en algemene aanduidingen. Wat daarna nog fout is,
+ * vangt $exclusions - zelf aangevinkt via de kortingsknop "klopt niet" -
+ * dat hier per winkel wordt weggefilterd vóórdat de goedkoopste gekozen
+ * wordt.
  */
-function fetchDealsForIngredient(string $ingredientName, array $exclusions = [], array $learnedWords = []): ?array
+function fetchDealsForIngredient(string $ingredientName, array $exclusions = []): ?array
 {
     $data = dealsApiGet('/search', [
         'q'                => $ingredientName,
         'promotion_status' => 'active',
-        'page_size'        => 20,
+        // Ruim: de echte producten staan vaak ná de bijvangst ("gehakt": 20
+        // sausmixen, dan pas het vlees).
+        'page_size'        => 100,
     ]);
     if ($data === null || !isset($data['results']) || !is_array($data['results'])) {
         return null;
     }
-
-    $needle  = trim(mb_strtolower($ingredientName, 'UTF-8'));
-    if ($needle === '') {
-        return [];
-    }
-    $pattern = '/\b' . preg_quote($needle, '/') . '\b/u';
 
     $best = [];
     foreach ($data['results'] as $row) {
@@ -227,23 +205,12 @@ function fetchDealsForIngredient(string $ingredientName, array $exclusions = [],
         if (!array_key_exists($retailer, DEALS_RETAILERS) || $price === null) {
             continue;
         }
-        if (!preg_match($pattern, mb_strtolower($name, 'UTF-8'))) {
+        if (!dealIsIngredientMatch($ingredientName, $brand, $name)) {
             continue;
         }
 
         $key = dealProductKey($baseProductId, $name);
         if (isset($exclusions[$retailer][$key])) {
-            continue;
-        }
-
-        $isLearnedMismatch = false;
-        foreach (dealExtraWords($ingredientName, $brand, $name) as $extraWord) {
-            if (isset($learnedWords[$extraWord])) {
-                $isLearnedMismatch = true;
-                break;
-            }
-        }
-        if ($isLearnedMismatch) {
             continue;
         }
 
@@ -303,11 +270,9 @@ function refreshDeals(PDO $pdo, bool $force = false): void
               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())'
     );
 
-    $learnedWords = fetchLearnedExclusionWords($pdo);
-
     foreach ($names as $row) {
         $exclusions = fetchDealExclusions($pdo, (int)$row['id']);
-        $deals      = fetchDealsForIngredient($row['name'], $exclusions, $learnedWords);
+        $deals      = fetchDealsForIngredient($row['name'], $exclusions);
         if ($deals === null) {
             // Aanroep mislukt voor dit ingredient: bestaande cache laten staan.
             continue;

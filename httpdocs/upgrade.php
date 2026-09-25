@@ -128,23 +128,14 @@ try {
             PRIMARY KEY (ingredient_id, retailer, product_key)
          ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci'
     );
-    $pdo->exec(
-        'CREATE TABLE IF NOT EXISTS {deal_exclusion_word} (
-            word      VARCHAR(40) NOT NULL PRIMARY KEY,
-            hits      INT UNSIGNED NOT NULL DEFAULT 1,
-            last_seen DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
-         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci'
-    );
-
-    $insWord = $pdo->prepare('INSERT IGNORE INTO {deal_exclusion_word} (word) VALUES (?)');
-    $wordsAdded = 0;
-    foreach (seedDealExclusionWords() as $word) {
-        $insWord->execute([$word]);
-        $wordsAdded += $insWord->rowCount();
-    }
-    $log[] = $wordsAdded > 0
-        ? "Geleerde woorden voor kortingsmatching voorgeladen: <strong>$wordsAdded</strong>."
-        : 'Geleerde woorden voor kortingsmatching stonden al klaar.';
+    // Geleerde woorden zijn vervangen door de strikte match in
+    // dealIsIngredientMatch(). De cache is nog met de oude filter gevuld:
+    // leeggooien en de verversingstijd wissen, zodat het eerstvolgende
+    // genereren opnieuw ophaalt. Bevroren weken (week_deal) blijven staan.
+    $pdo->exec('DROP TABLE IF EXISTS {deal_exclusion_word}');
+    $pdo->exec('DELETE FROM {deal}');
+    $pdo->exec("DELETE FROM {setting} WHERE name = 'deals_checked_at'");
+    $log[] = 'Kortingscache geleegd, wordt bij het volgende weekmenu opnieuw opgehaald.';
 
     $log[] = 'Aanbiedingen-tabellen staan klaar.';
 

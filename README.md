@@ -189,23 +189,26 @@ Reroll en de paginaweergave zelf checken nooit opnieuw bij prijsprofeet.nl
 rate limit.
 
 De zoek-api matcht op woorden, niet op producten: "gehakt" levert ook
-"Gebraden gehakt" op, en dat is een ander product. Zie je zo'n verkeerde
-match in het kortingsvenster, klik dan op **klopt niet, uitsluiten** bij
-dat product. Het verdwijnt meteen van de boodschappenlijst en komt ook bij
+"Mix voor gehakt" en "Gebraden gehakt" op. De app laat daarom alleen
+producten door waarvan de naam niets anders zegt dan het ingredient, het
+merk, de verpakking en een algemene aanduiding (rode, bio, kruimig,
+belegen, ... - `DEAL_VARIANT_WORDS` in `inc/deals.php`). "Gemengd gehakt"
+komt erdoor, "Gebraden gehakt" niet. Liever een aanbieding missen dan een
+verkeerde op de lijst; mist er een voor de hand liggende aanduiding, zet
+hem dan in die lijst.
+
+Bijgewerkt vanaf een versie met "geleerde woorden"? Dan gooit
+`upgrade.php` die tabel weg en leegt het de kortingscache; het volgende
+weekmenu dat je genereert haalt de aanbiedingen opnieuw op.
+
+Glipt er toch iets doorheen, klik dan in het kortingsvenster op
+**klopt niet, uitsluiten** bij dat product. Het verdwijnt meteen van de boodschappenlijst en komt ook bij
 een volgende verversing niet meer terug voor dat ingredient bij die
 winkel - een andere aanbieding bij diezelfde winkel kan later gewoon weer
 verschijnen.
 
-Zo'n klik leert de app ook iets algemeners: het woord dat het product
-onderscheidt van het ingredient (bijvoorbeeld "gebraden") wordt onthouden
-en weert voortaan vergelijkbare producten bij **elk** ingredient, niet
-alleen dat ene. Eén keer "gebraden gehakt" afkeuren beschermt dus meteen
-ook "kipfilet", "spek" enzovoort tegen datzelfde soort verkeerde match.
-`upgrade.php` laadt hier een startset van voor, zodat je niet vanaf nul
-tegen dezelfde veelvoorkomende missers aanloopt.
-
-Per ongeluk een verkeerd woord of product uitgesloten? In Recepten beheren,
-tabblad **Kortingen**, staan beide lijsten met een "wis"-knop erbij om dat
+Per ongeluk een verkeerd product uitgesloten? In Recepten beheren,
+tabblad **Kortingen**, staat de lijst met een "wis"-knop erbij om dat
 terug te draaien.
 
 ### Bijstellen

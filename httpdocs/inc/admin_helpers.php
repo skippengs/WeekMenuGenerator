@@ -196,7 +196,7 @@ function renderIngredientOptions(array $ingredients): string
 }
 
 /*
- * Kortingen beheren: de geleerde woorden en losse producten die "klopt
+ * Kortingen beheren: de losse producten die "klopt
  * niet, uitsluiten" in het kortingsvenster wegschrijft (zie inc/deals.php)
  * waren tot nu toe alleen met de hand in de database terug te draaien. Dit
  * geeft er een tabblad in admin.php voor, met dezelfde tabel/knop-opzet als
@@ -219,39 +219,6 @@ function dealProductKeyLabel(string $key): string
         return 'productcode ' . substr($key, 3);
     }
     return $key;
-}
-
-function fetchDealExclusionWordsForAdmin(PDO $pdo): array
-{
-    return $pdo->query(
-        'SELECT word, hits, last_seen FROM {deal_exclusion_word} ORDER BY hits DESC, word'
-    )->fetchAll();
-}
-
-function renderDealExclusionWordRow(array $w): string
-{
-    ob_start();
-    ?>
-    <tr data-word="<?= esc($w['word']) ?>">
-        <td><?= esc($w['word']) ?></td>
-        <td class="col-hide"><?= (int)$w['hits'] ?>&times;</td>
-        <td class="col-hide"><?= esc(date('d-m-Y', strtotime((string)$w['last_seen']))) ?></td>
-        <td class="col-actions">
-            <button class="linkbtn linkbtn-danger" type="button"
-                    data-delete-deal-word="<?= esc($w['word']) ?>">wis</button>
-        </td>
-    </tr>
-    <?php
-    return (string)ob_get_clean();
-}
-
-function renderDealExclusionWordTable(PDO $pdo): string
-{
-    $html = '';
-    foreach (fetchDealExclusionWordsForAdmin($pdo) as $w) {
-        $html .= renderDealExclusionWordRow($w);
-    }
-    return $html;
 }
 
 function fetchDealExclusionsForAdmin(PDO $pdo): array
