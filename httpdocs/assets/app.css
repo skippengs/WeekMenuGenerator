@@ -548,9 +548,15 @@ body.modal-open { overflow: hidden; }
     gap: 4px;
     margin-bottom: 20px;
     border-bottom: 1px solid var(--border);
+    /* Op een telefoon passen de tabbladen niet: schuiven in plaats van de
+       hele pagina (en daarmee elk venster) breder te maken. */
+    overflow-x: auto;
+    scrollbar-width: none;
 }
 
 .tab-btn {
+    flex-shrink: 0;
+    white-space: nowrap;
     padding: 10px 16px;
     margin-bottom: -1px;
     border: 0;
@@ -797,6 +803,7 @@ code {
     .modal-card {
         max-width: none;
         max-height: 92vh;
+        max-height: 92dvh;
         border-radius: 16px 16px 0 0;
     }
 
