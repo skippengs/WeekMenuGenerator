@@ -83,7 +83,7 @@ $dayMenu = static function (int $i) use (&$swapOptions): string {
 
 // Per dag: met welke andere dagen kun je wisselen, en waarom niet.
 $swapOptions = [];
-if ($mayEditMenu) {
+if ($mayEditMenu && $week !== null) {
     foreach (DAY_NAMES as $i => $unused) {
         foreach (DAY_NAMES as $j => $name) {
             if ($i === $j || $i === JUNK_DAY_INDEX || $j === JUNK_DAY_INDEX) {
