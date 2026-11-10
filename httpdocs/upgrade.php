@@ -226,8 +226,8 @@ try {
 
     $insIng  = $pdo->prepare('INSERT INTO {ingredient} (name, category, is_pantry_item) VALUES (?, ?, ?)');
     $insRec  = $pdo->prepare(
-        'INSERT INTO {recipe} (name, category, effort, weekend_only, servings, notes, steps, url, is_mine)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0)'
+        'INSERT INTO {recipe} (name, category, effort, weekend_only, servings, notes, steps, url, season, is_mine)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 0)'
     );
     $updRec  = $pdo->prepare(
         'UPDATE {recipe}
@@ -255,6 +255,7 @@ try {
 
     /* --- 4. recepten bijwerken en toevoegen --- */
     $seedNames = [];
+    $seasons   = seedSeasons();
     $updated   = 0;
     $inserted  = 0;
     $skipped   = 0;
@@ -280,7 +281,7 @@ try {
             $insRec->execute([
                 $r['name'], $r['category'], $r['effort'], $r['weekend_only'],
                 $r['servings'] ?? 4, $r['notes'] ?? null, $r['steps'] ?? null,
-                $r['url'] ?? null,
+                $r['url'] ?? null, $seasons[$r['name']] ?? null,
             ]);
             $recipeId = (int)$pdo->lastInsertId();
             $inserted++;

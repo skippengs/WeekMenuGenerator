@@ -21,7 +21,7 @@ op gewone PHP-webhosting met MySQL.
 - Houdt bij het kiezen rekening met actuele aanbiedingen bij AH, Jumbo,
   Aldi en PLUS, en laat op de boodschappenlijst zien welk product in de
   aanbieding is en bij welke winkel
-- 47 Nederlandse recepten om mee te beginnen, met bereiding
+- 106 recepten om mee te beginnen (Nederlandse klassiekers, wereldkeuken, vegetarisch en peutervriendelijk), met bereiding
 - Kijken mag iedereen; gebruikers met een eigen rol (lezer, bewerker, beheerder)
 - Boodschappen afvinken wordt per week bewaard en verschijnt binnen een paar
   seconden ook op andere telefoons
@@ -123,7 +123,7 @@ ook voor de foreign keys, want die namen moeten binnen de hele database
 uniek zijn.
 
 De installer test eerst of de verbinding werkt, schrijft de gegevens naar
-`inc/config.local.php`, maakt de tabellen aan en zet er 47 recepten in.
+`inc/config.local.php`, maakt de tabellen aan en zet er 106 recepten in.
 Je hoeft dus zelf geen enkel bestand te bewerken.
 
 ### 5. install.php weghalen
